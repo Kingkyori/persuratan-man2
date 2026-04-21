@@ -27,6 +27,14 @@ Route::middleware('web')->group(function () {
             return view('surat-masuk');
         })->name('surat-masuk');
 
+        Route::get('/surat-keluar', function () {
+            return view('surat-keluar');
+        })->name('surat-keluar');
+
+        Route::get('/sppd', function () {
+            return view('sppd');
+        })->name('sppd');
+
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     });
 });

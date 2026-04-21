@@ -23,7 +23,7 @@
             <span class="nav-label">Surat Masuk</span>
         </a>
         
-        <a href="#" class="nav-item">
+        <a href="{{ route('surat-keluar') }}" class="nav-item {{ request()->routeIs('surat-keluar') ? 'active' : '' }}">
             <span class="nav-icon">�</span>
             <span class="nav-label">Surat Keluar</span>
         </a>
@@ -33,7 +33,7 @@
             <span class="nav-label">Manajemen Surat</span>
         </a>
         
-        <a href="#" class="nav-item">
+        <a href="{{ route('sppd') }}" class="nav-item {{ request()->routeIs('sppd') ? 'active' : '' }}">
             <span class="nav-icon">📑</span>
             <span class="nav-label">SPPD & Penugasan</span>
         </a>
