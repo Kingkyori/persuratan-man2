@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\SuratMasukController;
 
 // Middleware untuk check session
 Route::middleware('web')->group(function () {
@@ -23,9 +24,12 @@ Route::middleware('web')->group(function () {
             return view('dashboard');
         })->name('dashboard');
 
-        Route::get('/surat-masuk', function () {
-            return view('surat-masuk');
-        })->name('surat-masuk');
+        // Surat Masuk Routes
+        Route::get('/surat-masuk', [SuratMasukController::class, 'index'])->name('surat-masuk');
+        Route::post('/surat-masuk/store', [SuratMasukController::class, 'store'])->name('surat-masuk.store');
+        Route::post('/surat-masuk/{id}/status', [SuratMasukController::class, 'updateStatus'])->name('surat-masuk.updateStatus');
+        Route::get('/surat-masuk/data', [SuratMasukController::class, 'getData'])->name('surat-masuk.getData');
+        Route::delete('/surat-masuk/{id}', [SuratMasukController::class, 'destroy'])->name('surat-masuk.destroy');
 
         Route::get('/surat-keluar', function () {
             return view('surat-keluar');

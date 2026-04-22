@@ -5,17 +5,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const togglePasswordBtn = document.getElementById('togglePassword');
     const passwordInput = document.getElementById('password');
 
-    if (togglePasswordBtn) {
+    if (togglePasswordBtn && passwordInput) {
         togglePasswordBtn.addEventListener('click', function(e) {
             e.preventDefault();
-            const type = passwordInput.type === 'password' ? 'text' : 'password';
-            passwordInput.type = type;
-
-            // Change icon based on visibility
-            if (type === 'password') {
-                togglePasswordBtn.textContent = '👁️';
+            
+            // Toggle password visibility
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                togglePasswordBtn.textContent = '🙈';  // Closed eye when showing
+                togglePasswordBtn.title = 'Sembunyikan password';
             } else {
-                togglePasswordBtn.textContent = '👁️‍🗨️';
+                passwordInput.type = 'password';
+                togglePasswordBtn.textContent = '👁️';  // Open eye when hiding
+                togglePasswordBtn.title = 'Tampilkan password';
             }
         });
     }

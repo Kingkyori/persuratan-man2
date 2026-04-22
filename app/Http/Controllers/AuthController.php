@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -15,16 +16,12 @@ class AuthController extends Controller
     }
 
     /**
-     * Handle login request - Hardcoded untuk prototype
+     * Handle login request - Connected to Database Tabel Login
      */
     public function login(Request $request)
     {
-        $username = $request->input('username');
-        $password = $request->input('password');
-
-        // Hardcoded credentials untuk prototype
-        $ADMIN_USERNAME = 'admin';
-        $ADMIN_PASSWORD = 'admin';
+        $username = trim($request->input('username'));
+        $password = trim($request->input('password'));
 
         // Validasi
         if (empty($username) || empty($password)) {
@@ -33,10 +30,18 @@ class AuthController extends Controller
             ])->onlyInput('username');
         }
 
-        // Check credentials
-        if ($username === $ADMIN_USERNAME && $password === $ADMIN_PASSWORD) {
+        // Cari user dari tabel login di database
+        $user = DB::table('login')
+                  ->where('username', $username)
+                  ->first();
+
+        // Check user dan password (case-insensitive comparison)
+        if ($user && strtoupper(trim($user->password)) === strtoupper($password)) {
             // Login berhasil - simpan ke session
-            session(['user' => ['name' => 'Administrator', 'username' => $username]]);
+            session(['user' => [
+                'id' => $user->id,
+                'username' => $user->username
+            ]]);
             return redirect()->intended('/dashboard');
         }
 

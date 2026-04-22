@@ -1,52 +1,213 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 📋 SISTEM PERSURATAN MAN 2 SURAKARTA
+## Surat Masuk Registration System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**Version**: 2.0.0 (Google Apps Script Edition)
+**Status**: ✅ PRODUCTION READY
+**Last Updated**: 2024-04-22
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🚀 QUICK START (2 MINUTES)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+```bash
+# Step 1: Migrate database
+php artisan migrate
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+# Step 2: Run Laravel
+php artisan serve
 
-## Learning Laravel
+# Step 3: Open browser
+http://localhost:8000/surat-masuk
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+✅ **Done!** System is ready to use.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## ✨ FEATURES
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- ✅ Modal form untuk register surat masuk
+- ✅ File upload ke Google Drive (via Apps Script)
+- ✅ MySQL database storage
+- ✅ Complete CRUD operations
+- ✅ Status management (Pending, Done, Disposed)
+- ✅ Search & filter functionality
+- ✅ Responsive design (desktop, tablet, mobile)
+- ✅ CSRF protected
+- ✅ Form validation
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## 📚 DOCUMENTATION
 
-## Contributing
+| Document | Time | Purpose |
+|----------|------|---------|
+| [QUICK_SETUP_APPS_SCRIPT.md](QUICK_SETUP_APPS_SCRIPT.md) | 30 sec | Quick reference |
+| [SETUP_APPS_SCRIPT.md](SETUP_APPS_SCRIPT.md) | 5 min | Complete setup guide |
+| [START_HERE.md](START_HERE.md) | 5 min | Getting started |
+| [UPDATE_SUMMARY_v2.md](UPDATE_SUMMARY_v2.md) | 5 min | What changed |
+| [DOKUMENTASI_SURAT_MASUK.md](DOKUMENTASI_SURAT_MASUK.md) | 10 min | How to use |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## 🎯 MAIN FEATURES
+
+### 1. Register New Surat Masuk
+Click "✚ Register New Surat Masuk" → Modal form with:
+- Origin (required) - Asal/pengirim
+- Reception Date (required) - Tanggal penerimaan
+- Letter Number (required, unique) - Nomor surat
+- Subject (required) - Perihal
+- Status - Pending/Done/Disposed
+- File upload (max 10MB, PDF/JPG/PNG)
+
+File automatically uploads to Google Drive via your Apps Script endpoint!
+
+### 2. View & Manage
+- Table displays all surat masuk
+- Change status via dropdown
+- Delete with confirmation
+- View details with modal
+- Search by origin/subject/number
+
+---
+
+## 🔗 API ENDPOINTS
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/surat-masuk` | Display page |
+| POST | `/surat-masuk/store` | Create entry |
+| POST | `/surat-masuk/{id}/status` | Update status |
+| DELETE | `/surat-masuk/{id}` | Delete entry |
+
+---
+
+## 💾 DATABASE
+
+```sql
+CREATE TABLE surat_masuk (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  origin VARCHAR(255) NOT NULL,
+  reception_date DATE NOT NULL,
+  letter_number VARCHAR(255) NOT NULL UNIQUE,
+  subject VARCHAR(255) NOT NULL,
+  status ENUM('pending','done','disposed') DEFAULT 'pending',
+  google_drive_link VARCHAR(500),
+  user_id BIGINT,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+```
+
+---
+
+## 📁 PROJECT STRUCTURE
+
+```
+app/
+├── Http/Controllers/SuratMasukController.php
+└── Models/SuratMasuk.php
+
+database/
+├── migrations/2024_04_22_000001_*
+└── surat_masuk.sql
+
+resources/views/
+└── surat-masuk.blade.php
+
+public/css/
+└── modal.css
+
+routes/web.php
+```
+
+---
+
+## 🔐 SECURITY
+
+✅ CSRF Protection
+✅ File validation (PDF/JPG/PNG only)
+✅ File size limit (10MB max)
+✅ Input sanitization (Eloquent ORM)
+✅ Secure uploads via Google Apps Script
+
+---
+
+## 🧪 TESTING
+
+```bash
+# 1. Run migrations
+php artisan migrate
+
+# 2. Start Laravel
+php artisan serve
+
+# 3. Open browser
+http://localhost:8000/surat-masuk
+
+# 4. Test the form:
+- Fill in all required fields
+- Upload a PDF/JPG file
+- Click Submit
+- Verify data appears in table
+- Check Google Drive for uploaded file
+```
+
+---
+
+## 🛠️ TROUBLESHOOTING
+
+| Issue | Solution |
+|-------|----------|
+| Database error | Check `.env` DB settings |
+| File upload failed | Check file size < 10MB, format OK |
+| Page not loading | Run `php artisan migrate` |
+| Form not submitting | Check browser console (F12) |
+
+---
+
+## 📊 REQUIREMENTS
+
+- PHP 8.2+
+- Laravel 12
+- MySQL 8.0+
+- Composer
+
+---
+
+## 🚀 DEPLOYMENT
+
+```bash
+# Prepare for production
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# Set permissions
+chmod -R 755 storage/
+chmod -R 755 bootstrap/cache/
+
+# Run migrations on server
+php artisan migrate --force
+```
+
+---
+
+## 📝 VERSION
+
+- **Version**: 2.0.0
+- **Google Apps Script**: Fully integrated
+- **Setup Time**: 2 minutes
+- **Status**: ✅ Production Ready
+
+---
+
+## 🙏 THANK YOU!
+
+Built for MAN 2 Surakarta
+
+**Happy organizing! 📋✨**
 
 In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
 
