@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'google_apps_script' => [
+        'web_app_url' => env(
+            'GOOGLE_APPS_SCRIPT_WEB_APP_URL',
+            'https://script.google.com/macros/s/AKfycbxvuwtzgJk0jGBacXa72NjTDf1pOEI314VUtN22f8vUC4Gtgp5DA4Ao4FOhUnK3hqa7/exec'
+        ),
+        'timeout' => env('GOOGLE_APPS_SCRIPT_TIMEOUT', 120),
+    ],
+
 ];
