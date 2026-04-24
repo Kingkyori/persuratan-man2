@@ -5,183 +5,420 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Surat Keluar - MAN 2 Surakarta</title>
     <link rel="stylesheet" href="{{ asset('css/sidebar.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/modal.css') }}">
     <link rel="stylesheet" href="{{ asset('css/surat-keluar.css') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 <body>
+    @php
+        $statusConfig = [
+            'draft' => ['label' => 'Draft', 'class' => 'badge-draft'],
+            'review' => ['label' => 'Menunggu Persetujuan', 'class' => 'badge-review'],
+            'revisi' => ['label' => 'Perlu Revisi', 'class' => 'badge-revisi'],
+            'final' => ['label' => 'Final', 'class' => 'badge-final'],
+        ];
+
+        $suratKeluar = collect($surat_keluar ?? []);
+    @endphp
+
     <div class="main-layout">
-        <!-- Sidebar -->
         @include('layouts.sidebar')
 
-        <!-- Main Content -->
         <main class="main-content">
-            <!-- Top Bar -->
             <div class="top-bar">
                 <div class="search-container">
-                    <input type="text" class="search-input" placeholder="Search correspondence...">
+                    <input
+                        type="text"
+                        class="search-input"
+                        id="searchInput"
+                        placeholder="Cari tujuan, perihal, atau nomor surat..."
+                    >
                 </div>
-                <div class="top-bar-actions">
-                    <button class="icon-btn notification-btn">
-                        <span>🔔</span>
-                    </button>
-                    <button class="icon-btn settings-btn">
-                        <span>⚙️</span>
-                    </button>
-                    <div class="user-profile">
-                        <span class="profile-avatar">👤</span>
-                    </div>
+                <div class="top-bar-note">
+                    Arsip surat keluar tersimpan di database dan file diunggah ke Google Drive.
                 </div>
             </div>
 
-            <!-- Page Header -->
             <div class="page-header">
                 <div class="header-content">
-                    <h1>Outgoing Mail Hub</h1>
-                    <p>Manage institutional correspondence, drafts, and approval workflows with the centralized mailing system.</p>
+                    <h1>Surat Keluar</h1>
+                    <p>
+                        Halaman ini dipakai untuk pencatatan surat keluar resmi. Nomor surat masih diisi manual,
+                        lalu file arsip dikirim ke Google Drive dengan alur status draft sampai final.
+                    </p>
                 </div>
-                <button class="btn-primary create-draft-btn">
-                    <span>✚</span>
-                    Create New Draft
-                </button>
+                <button class="btn-primary" id="btnOpenModal" type="button">+ Tambah Surat Keluar</button>
             </div>
 
-            <!-- Tabs -->
-            <div class="tabs-container">
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="all">All Correspondence</button>
-                    <button class="tab-btn" data-tab="drafts">My Drafts</button>
-                    <button class="tab-btn" data-tab="pending">Pending Approval</button>
-                </div>
-                <div class="tab-actions">
-                    <button class="btn-secondary edit-btn">✏️ Edit</button>
-                    <button class="btn-secondary export-btn">📤 Export</button>
-                </div>
-            </div>
-
-            <!-- Main Layout -->
-            <div class="layout-container">
-                <!-- Left: Creation Workspace -->
-                <div class="creation-workspace">
-                    <div class="workspace-header">
-                        <span class="workspace-icon">✏️</span>
-                        <h2>Creation Workspace</h2>
+            <section class="archive-section">
+                <div class="section-header">
+                    <div>
+                        <h2>Daftar Arsip Surat Keluar</h2>
+                        <p class="section-description">
+                            Data yang disimpan meliputi tanggal surat, tujuan, perihal, nomor surat, file arsip, dan status proses.
+                        </p>
                     </div>
-
-                    <form class="draft-form">
-                        <div class="form-group">
-                            <label>RECIPIENT / DESTINATION</label>
-                            <input type="text" placeholder="e.g. Kantor Wilayah Kemendikbud" class="form-control">
-                        </div>
-
-                        <div class="form-group">
-                            <label>CLASSIFICATION</label>
-                            <select class="form-control">
-                                <option>e.g. PD-10.8 Relocation</option>
-                                <option>PD-10.8 Relocation</option>
-                                <option>PD-20.1 Administrative</option>
-                                <option>PD-30.5 Educational</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label>DATE</label>
-                            <input type="text" placeholder="mm/dd/yyyy" class="form-control date-input">
-                        </div>
-
-                        <div class="form-group">
-                            <label>LETTER CONTENT / DRAFT</label>
-                            <textarea placeholder="Write letter brief or body here..." class="form-control textarea-control" rows="8"></textarea>
-                        </div>
-
-                        <div class="form-actions">
-                            <button type="button" class="btn-draft">Save as Draft</button>
-                            <button type="submit" class="btn-submit">Submit for Approval</button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Right: Correspondence List -->
-                <div class="correspondence-list">
-                    <div class="list-header">
-                        <h3>Recent Correspondences</h3>
-                    </div>
-
-                    <div class="correspondence-item">
-                        <div class="item-icon">📧</div>
-                        <div class="item-content">
-                            <h4>Undangan Rapat Koordinasi Kurikulum</h4>
-                            <p>To No. 11 | Dated: 06 & 10/12023</p>
-                        </div>
-                        <div class="item-meta">
-                            <span class="date">May 8</span>
-                            <span class="badge draft-badge">DRAFT</span>
-                        </div>
-                    </div>
-
-                    <div class="correspondence-item">
-                        <div class="item-icon">📮</div>
-                        <div class="item-content">
-                            <h4>Pengajuan Dana Untuk Renovasi</h4>
-                            <p>To No. 12 | Dated: 08 & 10/2024</p>
-                        </div>
-                        <div class="item-meta">
-                            <span class="date">May 5</span>
-                            <span class="badge pending-badge">WAITING FOR APPROVAL</span>
-                        </div>
-                    </div>
-
-                    <div class="correspondence-item">
-                        <div class="item-icon">📄</div>
-                        <div class="item-content">
-                            <h4>Surat Keterangan Akif Mengajar</h4>
-                            <p>To No. 18 | Dated: 07 & 11/2024</p>
-                        </div>
-                        <div class="item-meta">
-                            <span class="date">May 15</span>
-                            <span class="badge draft-badge">DRAFT</span>
-                        </div>
-                    </div>
-
-                    <div class="correspondence-item">
-                        <div class="item-icon">✓</div>
-                        <div class="item-content">
-                            <h4>Laporan Tahunan Kesehatan</h4>
-                            <p>To No. 21 | Dated: 09 & 11/2024</p>
-                        </div>
-                        <div class="item-meta">
-                            <span class="date">May 20</span>
-                            <span class="badge approved-badge">✓ APPROVED</span>
-                        </div>
-                    </div>
-
-                    <!-- Pagination -->
-                    <div class="list-pagination">
-                        <span>Showing 1-4 of 234 records</span>
-                        <div class="pagination">
-                            <button class="pagination-btn">←</button>
-                            <button class="pagination-btn active">1</button>
-                            <button class="pagination-btn">2</button>
-                            <button class="pagination-btn">3</button>
-                            <button class="pagination-btn">→</button>
-                        </div>
+                    <div class="workflow-note">
+                        <strong>Alur kerja:</strong> Draft -> Persetujuan -> Revisi/Final -> Upload Google Drive
                     </div>
                 </div>
-            </div>
 
-            <!-- Monthly Stats -->
-            <div class="stats-section">
-                <div class="stat-card-large">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-content">
-                        <h3>MONTHLY MAIL VOLUME</h3>
-                        <div class="stat-number">128</div>
-                        <p>Letters sent</p>
-                        <span class="stat-trend">↑ 11% from last month</span>
-                    </div>
+                <div class="table-responsive">
+                    <table class="archive-table">
+                        <thead>
+                            <tr>
+                                <th>Tanggal Surat</th>
+                                <th>Tujuan</th>
+                                <th>Perihal</th>
+                                <th>Nomor Surat</th>
+                                <th>File</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            @forelse($suratKeluar as $surat)
+                                @php
+                                    $statusKey = $surat->status;
+                                    $statusMeta = $statusConfig[$statusKey] ?? $statusConfig['draft'];
+                                @endphp
+                                <tr
+                                    data-id="{{ $surat->id }}"
+                                    data-search="{{ strtolower($surat->destination . ' ' . $surat->subject . ' ' . $surat->letter_number) }}"
+                                    data-tanggal="{{ optional($surat->letter_date)->format('d M Y') }}"
+                                    data-tujuan="{{ $surat->destination }}"
+                                    data-perihal="{{ $surat->subject }}"
+                                    data-nomor="{{ $surat->letter_number }}"
+                                    data-file="{{ $surat->file_name }}"
+                                    data-status="{{ $statusMeta['label'] }}"
+                                    data-catatan="{{ $surat->notes ?: '-' }}"
+                                    data-link="{{ $surat->google_drive_link }}"
+                                >
+                                    <td>{{ optional($surat->letter_date)->format('d M Y') }}</td>
+                                    <td>{{ $surat->destination }}</td>
+                                    <td>{{ $surat->subject }}</td>
+                                    <td>{{ $surat->letter_number }}</td>
+                                    <td>
+                                        <span class="file-pill">{{ $surat->file_name }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ $statusMeta['class'] }}">
+                                            {{ $statusMeta['label'] }}
+                                        </span>
+                                    </td>
+                                    <td class="action-cell">
+                                        @if($surat->google_drive_link)
+                                            <a href="{{ $surat->google_drive_link }}" target="_blank" class="btn-small" rel="noopener">Drive</a>
+                                        @endif
+                                        <button class="btn-small" type="button" onclick="viewDetail('{{ $surat->id }}')">Detail</button>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr id="emptyStateRow">
+                                    <td colspan="7" class="empty-state">Belum ada data surat keluar.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+
+                <div class="table-footer">
+                    <span id="resultCount">{{ $suratKeluar->count() }} surat tampil</span>
+                    <span>Setiap surat yang berhasil disimpan akan tercatat ke database dan memiliki tautan Google Drive.</span>
+                </div>
+            </section>
         </main>
     </div>
 
-    <script src="{{ asset('js/surat-keluar.js') }}"></script>
+    <div class="modal" id="modalRegister">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Input Surat Keluar</h2>
+                <button class="modal-close" id="btnCloseModal" type="button">&times;</button>
+            </div>
+
+            <form id="formSuratKeluar" class="register-form" enctype="multipart/form-data">
+                <div class="form-banner">
+                    Nomor surat masih diisi manual. Setelah tersimpan, data masuk ke database dan file dikirim ke Google Drive.
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="destination">Tujuan Surat <span class="required">*</span></label>
+                        <input type="text" id="destination" name="destination" class="form-control" required placeholder="Contoh: Kantor Kemenag Kota Surakarta">
+                    </div>
+                    <div class="form-group">
+                        <label for="letter_date">Tanggal Surat <span class="required">*</span></label>
+                        <input type="date" id="letter_date" name="letter_date" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="letter_number">Nomor Surat <span class="required">*</span></label>
+                        <input type="text" id="letter_number" name="letter_number" class="form-control" required placeholder="Isi manual untuk sementara">
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status <span class="required">*</span></label>
+                        <select id="status" name="status" class="form-control" required>
+                            <option value="draft">Draft</option>
+                            <option value="review">Menunggu Persetujuan</option>
+                            <option value="revisi">Perlu Revisi</option>
+                            <option value="final">Final</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="subject">Perihal <span class="required">*</span></label>
+                    <input type="text" id="subject" name="subject" class="form-control" required placeholder="Contoh: Undangan rapat koordinasi">
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Catatan</label>
+                    <textarea id="notes" name="notes" class="form-control" rows="3" placeholder="Tambahkan keterangan singkat jika diperlukan"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>File Surat <span class="required">*</span></label>
+                    <div class="file-upload" id="fileUploadArea">
+                        <span class="upload-symbol">[ Upload ]</span>
+                        <p id="fileNameDisplay">Pilih file surat keluar</p>
+                        <small>Format yang didukung: PDF, DOC, DOCX, JPG, PNG</small>
+                        <input
+                            type="file"
+                            id="letterFile"
+                            name="letter_file"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png"
+                            hidden
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">Batal</button>
+                    <button type="submit" class="btn-success" id="btnSubmit">
+                        <span id="submitText">Simpan Surat</span>
+                        <span id="submitLoader" style="display: none;">Menyimpan...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="modalDetail">
+        <div class="modal-content detail-modal-content">
+            <div class="modal-header">
+                <h2>Detail Surat Keluar</h2>
+                <button class="modal-close" type="button" onclick="closeDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body detail-info" id="detailContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const statusConfig = @json($statusConfig);
+        const modal = document.getElementById('modalRegister');
+        const detailModal = document.getElementById('modalDetail');
+        const form = document.getElementById('formSuratKeluar');
+        const fileInput = document.getElementById('letterFile');
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const tableBody = document.getElementById('tableBody');
+        const searchInput = document.getElementById('searchInput');
+        const resultCount = document.getElementById('resultCount');
+        const submitButton = document.getElementById('btnSubmit');
+        const submitText = document.getElementById('submitText');
+        const submitLoader = document.getElementById('submitLoader');
+
+        document.getElementById('btnOpenModal').addEventListener('click', () => {
+            modal.style.display = 'flex';
+        });
+
+        document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+
+        fileUploadArea.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                fileNameDisplay.textContent = fileInput.files[0].name;
+                fileUploadArea.classList.add('has-file');
+            } else {
+                resetFileUpload();
+            }
+        });
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            if (!fileInput.files.length) {
+                alert('Silakan pilih file surat terlebih dahulu.');
+                return;
+            }
+
+            const formData = new FormData(form);
+
+            try {
+                setSubmittingState(true);
+
+                const response = await fetch('{{ route("surat-keluar.store") }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const contentType = response.headers.get('content-type') || '';
+                const result = contentType.includes('application/json')
+                    ? await response.json()
+                    : {
+                        success: false,
+                        message: await response.text()
+                    };
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Gagal menyimpan surat keluar.');
+                }
+
+                prependRow(result.data);
+                closeModal();
+                updateVisibleCount();
+                alert(result.message);
+            } catch (error) {
+                alert(error.message || 'Terjadi kesalahan saat menyimpan surat keluar.');
+            } finally {
+                setSubmittingState(false);
+            }
+        });
+
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.trim().toLowerCase();
+            const rows = tableBody.querySelectorAll('tr[data-id]');
+
+            rows.forEach((row) => {
+                const matches = row.dataset.search.includes(query);
+                row.style.display = matches ? '' : 'none';
+            });
+
+            updateVisibleCount();
+        });
+
+        function prependRow(data) {
+            removeEmptyState();
+
+            const status = statusConfig[data.status] || statusConfig.draft;
+            const row = document.createElement('tr');
+
+            row.dataset.id = data.id;
+            row.dataset.search = `${data.tujuan} ${data.perihal} ${data.nomor}`.toLowerCase();
+            row.dataset.tanggal = data.tanggal;
+            row.dataset.tujuan = data.tujuan;
+            row.dataset.perihal = data.perihal;
+            row.dataset.nomor = data.nomor;
+            row.dataset.file = data.file;
+            row.dataset.status = status.label;
+            row.dataset.catatan = data.catatan || '-';
+            row.dataset.link = data.google_drive_link || '';
+
+            const driveButton = data.google_drive_link
+                ? `<a href="${escapeHtml(data.google_drive_link)}" target="_blank" class="btn-small" rel="noopener">Drive</a>`
+                : '';
+
+            row.innerHTML = `
+                <td>${escapeHtml(data.tanggal)}</td>
+                <td>${escapeHtml(data.tujuan)}</td>
+                <td>${escapeHtml(data.perihal)}</td>
+                <td>${escapeHtml(data.nomor)}</td>
+                <td><span class="file-pill">${escapeHtml(data.file)}</span></td>
+                <td><span class="badge ${status.class}">${status.label}</span></td>
+                <td class="action-cell">${driveButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button></td>
+            `;
+
+            tableBody.prepend(row);
+        }
+
+        function viewDetail(id) {
+            const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+
+            if (!row) {
+                return;
+            }
+
+            const driveLink = row.dataset.link
+                ? `<p><strong>Google Drive:</strong> <a href="${escapeHtml(row.dataset.link)}" target="_blank" rel="noopener">Buka file</a></p>`
+                : '';
+
+            document.getElementById('detailContent').innerHTML = `
+                <p><strong>Tanggal Surat:</strong> ${escapeHtml(row.dataset.tanggal)}</p>
+                <p><strong>Tujuan:</strong> ${escapeHtml(row.dataset.tujuan)}</p>
+                <p><strong>Perihal:</strong> ${escapeHtml(row.dataset.perihal)}</p>
+                <p><strong>Nomor Surat:</strong> ${escapeHtml(row.dataset.nomor)}</p>
+                <p><strong>File:</strong> ${escapeHtml(row.dataset.file)}</p>
+                <p><strong>Status:</strong> ${escapeHtml(row.dataset.status)}</p>
+                <p><strong>Catatan:</strong> ${escapeHtml(row.dataset.catatan)}</p>
+                ${driveLink}
+            `;
+
+            detailModal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+            form.reset();
+            resetFileUpload();
+            setSubmittingState(false);
+        }
+
+        function closeDetailModal() {
+            detailModal.style.display = 'none';
+        }
+
+        function resetFileUpload() {
+            fileNameDisplay.textContent = 'Pilih file surat keluar';
+            fileUploadArea.classList.remove('has-file');
+        }
+
+        function setSubmittingState(isSubmitting) {
+            submitButton.disabled = isSubmitting;
+            submitText.style.display = isSubmitting ? 'none' : 'inline';
+            submitLoader.style.display = isSubmitting ? 'inline' : 'none';
+        }
+
+        function removeEmptyState() {
+            const emptyStateRow = document.getElementById('emptyStateRow');
+            if (emptyStateRow) {
+                emptyStateRow.remove();
+            }
+        }
+
+        function updateVisibleCount() {
+            const visibleRows = Array.from(tableBody.querySelectorAll('tr[data-id]'))
+                .filter((row) => row.style.display !== 'none').length;
+
+            resultCount.textContent = `${visibleRows} surat tampil`;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        window.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+
+            if (event.target === detailModal) {
+                closeDetailModal();
+            }
+        });
+    </script>
 </body>
 </html>

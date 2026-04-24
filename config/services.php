@@ -36,11 +36,23 @@ return [
     ],
 
     'google_apps_script' => [
-        'web_app_url' => env(
-            'GOOGLE_APPS_SCRIPT_WEB_APP_URL',
-            'https://script.google.com/macros/s/AKfycbxvuwtzgJk0jGBacXa72NjTDf1pOEI314VUtN22f8vUC4Gtgp5DA4Ao4FOhUnK3hqa7/exec'
-        ),
+        'web_app_url' => env('GOOGLE_APPS_SCRIPT_WEB_APP_URL'),
         'timeout' => env('GOOGLE_APPS_SCRIPT_TIMEOUT', 120),
+        'connect_timeout' => env('GOOGLE_APPS_SCRIPT_CONNECT_TIMEOUT', 30),
+        'folders' => [
+            'surat_masuk' => [
+                'id' => env('GOOGLE_DRIVE_FOLDER_SURAT_MASUK_ID'),
+                'url' => env('GOOGLE_DRIVE_FOLDER_SURAT_MASUK_URL'),
+            ],
+            'surat_keluar' => [
+                'id' => env('GOOGLE_DRIVE_FOLDER_SURAT_KELUAR_ID'),
+                'url' => env('GOOGLE_DRIVE_FOLDER_SURAT_KELUAR_URL'),
+            ],
+            'sppd' => [
+                'id' => env('GOOGLE_DRIVE_FOLDER_SPPD_ID'),
+                'url' => env('GOOGLE_DRIVE_FOLDER_SPPD_URL'),
+            ],
+        ],
     ],
 
 ];

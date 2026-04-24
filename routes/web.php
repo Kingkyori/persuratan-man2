@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\SppdController;
+use App\Http\Controllers\SuratKeluarController;
 use App\Http\Controllers\SuratMasukController;
 
 // Middleware untuk check session
@@ -31,13 +33,11 @@ Route::middleware('web')->group(function () {
         Route::get('/surat-masuk/data', [SuratMasukController::class, 'getData'])->name('surat-masuk.getData');
         Route::delete('/surat-masuk/{id}', [SuratMasukController::class, 'destroy'])->name('surat-masuk.destroy');
 
-        Route::get('/surat-keluar', function () {
-            return view('surat-keluar');
-        })->name('surat-keluar');
+        Route::get('/surat-keluar', [SuratKeluarController::class, 'index'])->name('surat-keluar');
+        Route::post('/surat-keluar/store', [SuratKeluarController::class, 'store'])->name('surat-keluar.store');
 
-        Route::get('/sppd', function () {
-            return view('sppd');
-        })->name('sppd');
+        Route::get('/sppd', [SppdController::class, 'index'])->name('sppd');
+        Route::post('/sppd/store', [SppdController::class, 'store'])->name('sppd.store');
 
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     });
