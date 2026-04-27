@@ -11,14 +11,14 @@
 </head>
 <body>
     @php
-        $statusConfig = [
-            'draft' => ['label' => 'Draft', 'class' => 'badge-draft'],
-            'review' => ['label' => 'Menunggu Persetujuan', 'class' => 'badge-review'],
-            'aktif' => ['label' => 'Aktif', 'class' => 'badge-active'],
-            'selesai' => ['label' => 'Selesai', 'class' => 'badge-finished'],
-        ];
-
+        $statusConfig = \App\Support\DispositionStatus::options();
         $records = collect($sppd ?? []);
+        $travelStats = [
+            'total' => $records->count(),
+            'draft' => $records->filter(fn ($item) => \App\Support\DispositionStatus::normalize($item->status) === 'draft')->count(),
+            'pending' => $records->filter(fn ($item) => \App\Support\DispositionStatus::normalize($item->status) === 'pending_approval')->count(),
+            'approved' => $records->filter(fn ($item) => \App\Support\DispositionStatus::normalize($item->status) === 'approved')->count(),
+        ];
     @endphp
 
     <div class="main-layout">
@@ -35,7 +35,7 @@
                     >
                 </div>
                 <div class="top-bar-note">
-                    SPPD tersimpan ke database dan file arsip diunggah ke Google Drive.
+                    Arsip SPPD tersimpan ke database, dan catatan hasil disposisi dapat dilihat dari tombol `!` di samping status.
                 </div>
             </div>
 
@@ -43,23 +43,42 @@
                 <div class="header-content">
                     <h1>SPPD</h1>
                     <p>
-                        Halaman ini dipakai untuk mencatat Surat Perintah Perjalanan Dinas. Admin mengisi nama pegawai,
-                        detail perjalanan, lalu mengunggah lampiran agar data masuk ke arsip sistem.
+                        Kelola Surat Perintah Perjalanan Dinas dalam satu daftar yang rapi, lengkap dengan status,
+                        hasil review, dan tautan arsip file.
                     </p>
                 </div>
                 <button class="btn-primary" id="btnOpenModal" type="button">+ Tambah SPPD</button>
             </div>
+
+            <section class="stats-strip">
+                <article class="mini-stat">
+                    <span class="mini-label">Total Arsip</span>
+                    <strong>{{ $travelStats['total'] }}</strong>
+                </article>
+                <article class="mini-stat">
+                    <span class="mini-label">Draft</span>
+                    <strong>{{ $travelStats['draft'] }}</strong>
+                </article>
+                <article class="mini-stat">
+                    <span class="mini-label">Menunggu</span>
+                    <strong>{{ $travelStats['pending'] }}</strong>
+                </article>
+                <article class="mini-stat">
+                    <span class="mini-label">Disetujui</span>
+                    <strong>{{ $travelStats['approved'] }}</strong>
+                </article>
+            </section>
 
             <section class="archive-section">
                 <div class="section-header">
                     <div>
                         <h2>Daftar Arsip SPPD</h2>
                         <p class="section-description">
-                            Fokus data SPPD: pegawai, tujuan perjalanan, tanggal berangkat, durasi, kepentingan dinas, file, dan status.
+                            Fokus data SPPD: pegawai, tujuan perjalanan, tanggal berangkat, durasi, kepentingan dinas, file, status, dan catatan review.
                         </p>
                     </div>
                     <div class="workflow-note">
-                        <strong>Alur kerja:</strong> Draft -> Persetujuan -> Aktif -> Selesai
+                        <strong>Alur kerja:</strong> Draft -> Menunggu Persetujuan -> Revisi / Ditolak / Disetujui
                     </div>
                 </div>
 
@@ -80,7 +99,9 @@
                         <tbody id="tableBody">
                             @forelse($records as $item)
                                 @php
-                                    $statusMeta = $statusConfig[$item->status] ?? $statusConfig['draft'];
+                                    $statusKey = \App\Support\DispositionStatus::normalize($item->status);
+                                    $statusMeta = $statusConfig[$statusKey] ?? $statusConfig['draft'];
+                                    $hasReviewSignal = filled($item->notes) || $statusKey !== 'draft';
                                 @endphp
                                 <tr
                                     data-id="{{ $item->id }}"
@@ -91,6 +112,7 @@
                                     data-durasi="{{ $item->duration_days }} hari"
                                     data-kepentingan="{{ $item->purpose }}"
                                     data-status="{{ $statusMeta['label'] }}"
+                                    data-status-key="{{ $statusKey }}"
                                     data-file="{{ $item->file_name }}"
                                     data-link="{{ $item->google_drive_link }}"
                                     data-catatan="{{ $item->notes ?: '-' }}"
@@ -102,7 +124,16 @@
                                     <td>{{ \Illuminate\Support\Str::limit($item->purpose, 45) }}</td>
                                     <td><span class="file-pill">{{ $item->file_name }}</span></td>
                                     <td>
-                                        <span class="badge {{ $statusMeta['class'] }}">{{ $statusMeta['label'] }}</span>
+                                        <div class="status-cell">
+                                            <span class="badge {{ $statusMeta['class'] }}">{{ $statusMeta['label'] }}</span>
+                                            <button
+                                                class="review-indicator {{ filled($item->notes) ? 'has-note' : 'has-status' }}"
+                                                type="button"
+                                                onclick="openNoteModal('{{ $item->id }}')"
+                                                title="Lihat catatan disposisi"
+                                                {{ $hasReviewSignal ? '' : 'hidden' }}
+                                            >!</button>
+                                        </div>
                                     </td>
                                     <td class="action-cell">
                                         @if($item->google_drive_link)
@@ -173,10 +204,9 @@
                     <div class="form-group">
                         <label for="status">Status <span class="required">*</span></label>
                         <select id="status" name="status" class="form-control" required>
-                            <option value="draft">Draft</option>
-                            <option value="review">Menunggu Persetujuan</option>
-                            <option value="aktif">Aktif</option>
-                            <option value="selesai">Selesai</option>
+                            @foreach($statusConfig as $statusKey => $statusMeta)
+                                <option value="{{ $statusKey }}">{{ $statusMeta['label'] }}</option>
+                            @endforeach
                         </select>
                     </div>
                     <div class="form-group">
@@ -223,10 +253,30 @@
         </div>
     </div>
 
+    <div class="modal" id="modalNote">
+        <div class="modal-content note-modal-content">
+            <div class="modal-header">
+                <h2>Catatan Disposisi</h2>
+                <button class="modal-close" type="button" onclick="closeNoteModal()">&times;</button>
+            </div>
+            <div class="modal-body note-body">
+                <div class="note-summary">
+                    <strong id="noteStatusLabel">Status dokumen</strong>
+                    <span id="noteStatusValue" class="note-status-pill">Draft</span>
+                </div>
+                <div class="note-panel">
+                    <p id="noteText">Belum ada catatan disposisi.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ asset('js/request-progress.js') }}"></script>
     <script>
         const statusConfig = @json($statusConfig);
         const modal = document.getElementById('modalRegister');
         const detailModal = document.getElementById('modalDetail');
+        const noteModal = document.getElementById('modalNote');
         const form = document.getElementById('formSppd');
         const fileInput = document.getElementById('attachmentFile');
         const fileUploadArea = document.getElementById('fileUploadArea');
@@ -272,22 +322,20 @@
             try {
                 setSubmittingState(true);
 
-                const response = await fetch('{{ route("sppd.store") }}', {
+                const { response, result } = await RequestProgress.requestJson({
+                    url: '{{ route("sppd.store") }}',
                     method: 'POST',
-                    body: formData,
+                    data: formData,
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                         'Accept': 'application/json'
-                    }
+                    },
+                    title: 'Mengunggah data SPPD',
+                    initialMessage: 'Menyiapkan lampiran SPPD...',
+                    uploadMessage: 'Mengunggah lampiran SPPD...',
+                    processingMessage: 'Menyimpan data SPPD ke database dan Google Drive...',
+                    successMessage: 'Data SPPD berhasil diproses.'
                 });
-
-                const contentType = response.headers.get('content-type') || '';
-                const result = contentType.includes('application/json')
-                    ? await response.json()
-                    : {
-                        success: false,
-                        message: await response.text()
-                    };
 
                 if (!response.ok || !result.success) {
                     throw new Error(result.message || 'Gagal menyimpan data SPPD.');
@@ -296,7 +344,10 @@
                 prependRow(result.data);
                 closeModal();
                 updateVisibleCount();
-                alert(result.message);
+                RequestProgress.showNotice(
+                    result.message,
+                    result.drive_synced === false ? 'warning' : 'success'
+                );
             } catch (error) {
                 alert(error.message || 'Terjadi kesalahan saat menyimpan data SPPD.');
             } finally {
@@ -329,6 +380,7 @@
             row.dataset.durasi = data.durasi;
             row.dataset.kepentingan = data.kepentingan;
             row.dataset.status = status.label;
+            row.dataset.statusKey = data.status || 'draft';
             row.dataset.file = data.file;
             row.dataset.link = data.google_drive_link || '';
             row.dataset.catatan = data.catatan || '-';
@@ -344,7 +396,12 @@
                 <td>${escapeHtml(data.durasi)}</td>
                 <td>${escapeHtml(limitText(data.kepentingan, 45))}</td>
                 <td><span class="file-pill">${escapeHtml(data.file)}</span></td>
-                <td><span class="badge ${status.class}">${status.label}</span></td>
+                <td>
+                    <div class="status-cell">
+                        <span class="badge ${status.class}">${status.label}</span>
+                        ${renderReviewButton(data.id, data.status, data.catatan)}
+                    </div>
+                </td>
                 <td class="action-cell">${driveButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button></td>
             `;
 
@@ -370,11 +427,28 @@
                 <p><strong>Kepentingan Dinas:</strong> ${escapeHtml(row.dataset.kepentingan)}</p>
                 <p><strong>Status:</strong> ${escapeHtml(row.dataset.status)}</p>
                 <p><strong>File:</strong> ${escapeHtml(row.dataset.file)}</p>
-                <p><strong>Catatan:</strong> ${escapeHtml(row.dataset.catatan)}</p>
+                <p><strong>Catatan:</strong> ${escapeHtml(normalizeNote(row.dataset.catatan))}</p>
                 ${driveLink}
             `;
 
             detailModal.style.display = 'flex';
+        }
+
+        function openNoteModal(id) {
+            const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+
+            if (!row) {
+                return;
+            }
+
+            const note = normalizeNote(row.dataset.catatan);
+            document.getElementById('noteStatusLabel').textContent = 'Status terakhir dokumen';
+            document.getElementById('noteStatusValue').textContent = row.dataset.status || 'Draft';
+            document.getElementById('noteText').textContent = note === '-'
+                ? 'Belum ada catatan tambahan. Dokumen ini sudah pernah ditinjau atau statusnya sudah diperbarui.'
+                : note;
+
+            noteModal.style.display = 'flex';
         }
 
         function closeModal() {
@@ -386,6 +460,10 @@
 
         function closeDetailModal() {
             detailModal.style.display = 'none';
+        }
+
+        function closeNoteModal() {
+            noteModal.style.display = 'none';
         }
 
         function resetFileUpload() {
@@ -417,6 +495,24 @@
             resultCount.textContent = `${visibleRows} data tampil`;
         }
 
+        function normalizeNote(note) {
+            const value = String(note ?? '').trim();
+            return value && value !== 'null' ? value : '-';
+        }
+
+        function hasReviewSignal(statusKey, note) {
+            return String(statusKey || 'draft') !== 'draft' || normalizeNote(note) !== '-';
+        }
+
+        function renderReviewButton(id, statusKey, note) {
+            if (!hasReviewSignal(statusKey, note)) {
+                return '';
+            }
+
+            const buttonClass = normalizeNote(note) !== '-' ? 'has-note' : 'has-status';
+            return `<button class="review-indicator ${buttonClass}" type="button" onclick="openNoteModal('${id}')" title="Lihat catatan disposisi">!</button>`;
+        }
+
         function limitText(value, maxLength) {
             const text = String(value ?? '');
             return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
@@ -438,6 +534,10 @@
 
             if (event.target === detailModal) {
                 closeDetailModal();
+            }
+
+            if (event.target === noteModal) {
+                closeNoteModal();
             }
         });
     </script>

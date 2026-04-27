@@ -11,14 +11,14 @@
 </head>
 <body>
     @php
-        $statusConfig = [
-            'draft' => ['label' => 'Draft', 'class' => 'badge-draft'],
-            'review' => ['label' => 'Menunggu Persetujuan', 'class' => 'badge-review'],
-            'revisi' => ['label' => 'Perlu Revisi', 'class' => 'badge-revisi'],
-            'final' => ['label' => 'Final', 'class' => 'badge-final'],
-        ];
-
+        $statusConfig = \App\Support\DispositionStatus::options();
         $suratKeluar = collect($surat_keluar ?? []);
+        $outgoingStats = [
+            'total' => $suratKeluar->count(),
+            'draft' => $suratKeluar->filter(fn ($item) => \App\Support\DispositionStatus::normalize($item->status) === 'draft')->count(),
+            'pending' => $suratKeluar->filter(fn ($item) => \App\Support\DispositionStatus::normalize($item->status) === 'pending_approval')->count(),
+            'approved' => $suratKeluar->filter(fn ($item) => \App\Support\DispositionStatus::normalize($item->status) === 'approved')->count(),
+        ];
     @endphp
 
     <div class="main-layout">
@@ -35,7 +35,7 @@
                     >
                 </div>
                 <div class="top-bar-note">
-                    Arsip surat keluar tersimpan di database dan file diunggah ke Google Drive.
+                    Arsip surat keluar tersimpan di database, dan catatan disposisi bisa dilihat dari tombol `!` di samping status.
                 </div>
             </div>
 
@@ -43,23 +43,42 @@
                 <div class="header-content">
                     <h1>Surat Keluar</h1>
                     <p>
-                        Halaman ini dipakai untuk pencatatan surat keluar resmi. Nomor surat masih diisi manual,
-                        lalu file arsip dikirim ke Google Drive dengan alur status draft sampai final.
+                        Catat surat keluar resmi, simpan arsip ke database, dan pantau hasil review atau disposisi
+                        tanpa perlu membuka halaman lain.
                     </p>
                 </div>
                 <button class="btn-primary" id="btnOpenModal" type="button">+ Tambah Surat Keluar</button>
             </div>
+
+            <section class="stats-strip">
+                <article class="mini-stat">
+                    <span class="mini-label">Total Arsip</span>
+                    <strong>{{ $outgoingStats['total'] }}</strong>
+                </article>
+                <article class="mini-stat">
+                    <span class="mini-label">Draft</span>
+                    <strong>{{ $outgoingStats['draft'] }}</strong>
+                </article>
+                <article class="mini-stat">
+                    <span class="mini-label">Menunggu</span>
+                    <strong>{{ $outgoingStats['pending'] }}</strong>
+                </article>
+                <article class="mini-stat">
+                    <span class="mini-label">Disetujui</span>
+                    <strong>{{ $outgoingStats['approved'] }}</strong>
+                </article>
+            </section>
 
             <section class="archive-section">
                 <div class="section-header">
                     <div>
                         <h2>Daftar Arsip Surat Keluar</h2>
                         <p class="section-description">
-                            Data yang disimpan meliputi tanggal surat, tujuan, perihal, nomor surat, file arsip, dan status proses.
+                            Data yang disimpan meliputi tanggal surat, tujuan, perihal, nomor surat, file arsip, status, dan catatan hasil disposisi.
                         </p>
                     </div>
                     <div class="workflow-note">
-                        <strong>Alur kerja:</strong> Draft -> Persetujuan -> Revisi/Final -> Upload Google Drive
+                        <strong>Alur kerja:</strong> Draft -> Menunggu Persetujuan -> Revisi / Ditolak / Disetujui
                     </div>
                 </div>
 
@@ -79,8 +98,9 @@
                         <tbody id="tableBody">
                             @forelse($suratKeluar as $surat)
                                 @php
-                                    $statusKey = $surat->status;
+                                    $statusKey = \App\Support\DispositionStatus::normalize($surat->status);
                                     $statusMeta = $statusConfig[$statusKey] ?? $statusConfig['draft'];
+                                    $hasReviewSignal = filled($surat->notes) || $statusKey !== 'draft';
                                 @endphp
                                 <tr
                                     data-id="{{ $surat->id }}"
@@ -91,6 +111,7 @@
                                     data-nomor="{{ $surat->letter_number }}"
                                     data-file="{{ $surat->file_name }}"
                                     data-status="{{ $statusMeta['label'] }}"
+                                    data-status-key="{{ $statusKey }}"
                                     data-catatan="{{ $surat->notes ?: '-' }}"
                                     data-link="{{ $surat->google_drive_link }}"
                                 >
@@ -102,9 +123,18 @@
                                         <span class="file-pill">{{ $surat->file_name }}</span>
                                     </td>
                                     <td>
-                                        <span class="badge {{ $statusMeta['class'] }}">
-                                            {{ $statusMeta['label'] }}
-                                        </span>
+                                        <div class="status-cell">
+                                            <span class="badge {{ $statusMeta['class'] }}">
+                                                {{ $statusMeta['label'] }}
+                                            </span>
+                                            <button
+                                                class="review-indicator {{ filled($surat->notes) ? 'has-note' : 'has-status' }}"
+                                                type="button"
+                                                onclick="openNoteModal('{{ $surat->id }}')"
+                                                title="Lihat catatan disposisi"
+                                                {{ $hasReviewSignal ? '' : 'hidden' }}
+                                            >!</button>
+                                        </div>
                                     </td>
                                     <td class="action-cell">
                                         @if($surat->google_drive_link)
@@ -161,10 +191,9 @@
                     <div class="form-group">
                         <label for="status">Status <span class="required">*</span></label>
                         <select id="status" name="status" class="form-control" required>
-                            <option value="draft">Draft</option>
-                            <option value="review">Menunggu Persetujuan</option>
-                            <option value="revisi">Perlu Revisi</option>
-                            <option value="final">Final</option>
+                            @foreach($statusConfig as $statusKey => $statusMeta)
+                                <option value="{{ $statusKey }}">{{ $statusMeta['label'] }}</option>
+                            @endforeach
                         </select>
                     </div>
                 </div>
@@ -217,10 +246,30 @@
         </div>
     </div>
 
+    <div class="modal" id="modalNote">
+        <div class="modal-content note-modal-content">
+            <div class="modal-header">
+                <h2>Catatan Disposisi</h2>
+                <button class="modal-close" type="button" onclick="closeNoteModal()">&times;</button>
+            </div>
+            <div class="modal-body note-body">
+                <div class="note-summary">
+                    <strong id="noteStatusLabel">Status surat</strong>
+                    <span id="noteStatusValue" class="note-status-pill">Draft</span>
+                </div>
+                <div class="note-panel">
+                    <p id="noteText">Belum ada catatan disposisi.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ asset('js/request-progress.js') }}"></script>
     <script>
         const statusConfig = @json($statusConfig);
         const modal = document.getElementById('modalRegister');
         const detailModal = document.getElementById('modalDetail');
+        const noteModal = document.getElementById('modalNote');
         const form = document.getElementById('formSuratKeluar');
         const fileInput = document.getElementById('letterFile');
         const fileUploadArea = document.getElementById('fileUploadArea');
@@ -262,22 +311,20 @@
             try {
                 setSubmittingState(true);
 
-                const response = await fetch('{{ route("surat-keluar.store") }}', {
+                const { response, result } = await RequestProgress.requestJson({
+                    url: '{{ route("surat-keluar.store") }}',
                     method: 'POST',
-                    body: formData,
+                    data: formData,
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                         'Accept': 'application/json'
-                    }
+                    },
+                    title: 'Mengunggah surat keluar',
+                    initialMessage: 'Menyiapkan file surat keluar...',
+                    uploadMessage: 'Mengunggah file surat keluar...',
+                    processingMessage: 'Menyimpan surat keluar ke database dan Google Drive...',
+                    successMessage: 'Surat keluar berhasil diproses.'
                 });
-
-                const contentType = response.headers.get('content-type') || '';
-                const result = contentType.includes('application/json')
-                    ? await response.json()
-                    : {
-                        success: false,
-                        message: await response.text()
-                    };
 
                 if (!response.ok || !result.success) {
                     throw new Error(result.message || 'Gagal menyimpan surat keluar.');
@@ -286,7 +333,10 @@
                 prependRow(result.data);
                 closeModal();
                 updateVisibleCount();
-                alert(result.message);
+                RequestProgress.showNotice(
+                    result.message,
+                    result.drive_synced === false ? 'warning' : 'success'
+                );
             } catch (error) {
                 alert(error.message || 'Terjadi kesalahan saat menyimpan surat keluar.');
             } finally {
@@ -320,6 +370,7 @@
             row.dataset.nomor = data.nomor;
             row.dataset.file = data.file;
             row.dataset.status = status.label;
+            row.dataset.statusKey = data.status || 'draft';
             row.dataset.catatan = data.catatan || '-';
             row.dataset.link = data.google_drive_link || '';
 
@@ -333,7 +384,12 @@
                 <td>${escapeHtml(data.perihal)}</td>
                 <td>${escapeHtml(data.nomor)}</td>
                 <td><span class="file-pill">${escapeHtml(data.file)}</span></td>
-                <td><span class="badge ${status.class}">${status.label}</span></td>
+                <td>
+                    <div class="status-cell">
+                        <span class="badge ${status.class}">${status.label}</span>
+                        ${renderReviewButton(data.id, data.status, data.catatan)}
+                    </div>
+                </td>
                 <td class="action-cell">${driveButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button></td>
             `;
 
@@ -358,11 +414,28 @@
                 <p><strong>Nomor Surat:</strong> ${escapeHtml(row.dataset.nomor)}</p>
                 <p><strong>File:</strong> ${escapeHtml(row.dataset.file)}</p>
                 <p><strong>Status:</strong> ${escapeHtml(row.dataset.status)}</p>
-                <p><strong>Catatan:</strong> ${escapeHtml(row.dataset.catatan)}</p>
+                <p><strong>Catatan:</strong> ${escapeHtml(normalizeNote(row.dataset.catatan))}</p>
                 ${driveLink}
             `;
 
             detailModal.style.display = 'flex';
+        }
+
+        function openNoteModal(id) {
+            const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+
+            if (!row) {
+                return;
+            }
+
+            const note = normalizeNote(row.dataset.catatan);
+            document.getElementById('noteStatusLabel').textContent = 'Status terakhir surat';
+            document.getElementById('noteStatusValue').textContent = row.dataset.status || 'Draft';
+            document.getElementById('noteText').textContent = note === '-'
+                ? 'Belum ada catatan tambahan. Surat ini sudah pernah ditinjau atau statusnya sudah diperbarui.'
+                : note;
+
+            noteModal.style.display = 'flex';
         }
 
         function closeModal() {
@@ -374,6 +447,10 @@
 
         function closeDetailModal() {
             detailModal.style.display = 'none';
+        }
+
+        function closeNoteModal() {
+            noteModal.style.display = 'none';
         }
 
         function resetFileUpload() {
@@ -401,6 +478,24 @@
             resultCount.textContent = `${visibleRows} surat tampil`;
         }
 
+        function normalizeNote(note) {
+            const value = String(note ?? '').trim();
+            return value && value !== 'null' ? value : '-';
+        }
+
+        function hasReviewSignal(statusKey, note) {
+            return String(statusKey || 'draft') !== 'draft' || normalizeNote(note) !== '-';
+        }
+
+        function renderReviewButton(id, statusKey, note) {
+            if (!hasReviewSignal(statusKey, note)) {
+                return '';
+            }
+
+            const buttonClass = normalizeNote(note) !== '-' ? 'has-note' : 'has-status';
+            return `<button class="review-indicator ${buttonClass}" type="button" onclick="openNoteModal('${id}')" title="Lihat catatan disposisi">!</button>`;
+        }
+
         function escapeHtml(value) {
             return String(value ?? '')
                 .replace(/&/g, '&amp;')
@@ -417,6 +512,10 @@
 
             if (event.target === detailModal) {
                 closeDetailModal();
+            }
+
+            if (event.target === noteModal) {
+                closeNoteModal();
             }
         });
     </script>

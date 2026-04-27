@@ -8,169 +8,144 @@
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
 </head>
 <body>
+    @php
+        $userName = session('user.name') ?? 'Administrator';
+        $maxDistribution = max(array_merge(array_values($statusDistribution ?: ['Draft' => 1]), [1]));
+    @endphp
+
     <div class="main-container">
-        <!-- Sidebar -->
         @include('layouts.sidebar')
 
-        <!-- Content Wrapper -->
         <div class="content-wrapper">
-            <!-- Top Bar -->
             <div class="top-bar">
-                <div class="search-bar">
-                    <span class="search-icon">🔍</span>
-                    <input type="text" placeholder="Search records, letters, or students...">
+                <div>
+                    <p class="eyebrow">Ringkasan Persuratan</p>
+                    <h1 class="top-title">Dashboard Monitoring Surat</h1>
                 </div>
-                <div class="top-bar-right">
-                    <button class="icon-btn">🔔</button>
-                    <button class="icon-btn">⚙️</button>
-                    <div class="user-info">
-                        <span style="font-size: 14px; color: #706f6c;">
-                            <strong style="color: #1b1b18;">{{ session('user.name') ?? 'Administrator' }}</strong><br>
-                            <span style="font-size: 12px;">SUPER USER</span>
-                        </span>
-                        <div class="user-badge">{{ substr(session('user.name') ?? 'Admin', 0, 1) }}</div>
+                <div class="user-chip">
+                    <span class="user-avatar">{{ strtoupper(substr($userName, 0, 1)) }}</span>
+                    <div>
+                        <strong>{{ $userName }}</strong>
+                        <small>Pengelola sistem persuratan</small>
                     </div>
                 </div>
             </div>
 
-            <!-- Main Content -->
-            <div class="content">
-                <!-- Welcome Section -->
-                <div class="welcome-section">
-                    <div class="welcome-text">
-                        <h1>Selamat Datang, Admin</h1>
-                        <p>Monitoring the institutional workflow of MAN 2 Surakarta. You have 12 pending dispositions requiring immediate attention.</p>
-                        <div class="welcome-buttons">
-                            <button class="btn btn-primary">
-                                <span>✉️</span>
-                                Register New Mail
-                            </button>
-                            <button class="btn btn-secondary">
-                                <span>📋</span>
-                                Create SPPD
-                            </button>
-                        </div>
+            <main class="content">
+                <section class="hero-panel">
+                    <div class="hero-copy">
+                        <p class="eyebrow">Ikhtisar Hari Ini</p>
+                        <h2>Semua status surat dan disposisi terpantau dalam satu halaman.</h2>
+                        <p>
+                            Saat ini ada <strong>{{ $stats['pending'] }}</strong> dokumen menunggu persetujuan,
+                            <strong>{{ $stats['revision'] }}</strong> dokumen perlu revisi, dan
+                            <strong>{{ $stats['reviewed'] }}</strong> dokumen sudah memiliki catatan atau perubahan status.
+                        </p>
                     </div>
-                </div>
-
-                <!-- Stats Grid -->
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-icon">📬</span>
-                            <span class="stat-label">+5 Today</span>
-                        </div>
-                        <div class="stat-value">1,284</div>
-                        <div class="stat-title">Surat Masuk</div>
+                    <div class="hero-actions">
+                        <a href="{{ route('surat-masuk') }}" class="hero-link primary-link">Buka Surat Masuk</a>
+                        <a href="{{ route('surat-keluar') }}" class="hero-link">Buka Surat Keluar</a>
+                        <a href="{{ route('sppd') }}" class="hero-link">Buka SPPD</a>
+                        <a href="{{ route('disposisi') }}" class="hero-link">Buka Disposisi</a>
                     </div>
+                </section>
 
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-icon">📤</span>
-                            <span class="stat-label">8 Pending</span>
-                        </div>
-                        <div class="stat-value">842</div>
-                        <div class="stat-title">Surat Keluar</div>
-                    </div>
+                <section class="stats-grid">
+                    <article class="stat-card">
+                        <span class="stat-kicker">Arsip</span>
+                        <strong class="stat-value">{{ $stats['surat_masuk'] }}</strong>
+                        <span class="stat-title">Surat Masuk</span>
+                    </article>
+                    <article class="stat-card">
+                        <span class="stat-kicker">Arsip</span>
+                        <strong class="stat-value">{{ $stats['surat_keluar'] }}</strong>
+                        <span class="stat-title">Surat Keluar</span>
+                    </article>
+                    <article class="stat-card">
+                        <span class="stat-kicker">Perjalanan Dinas</span>
+                        <strong class="stat-value">{{ $stats['sppd'] }}</strong>
+                        <span class="stat-title">Total SPPD</span>
+                    </article>
+                    <article class="stat-card highlight">
+                        <span class="stat-kicker">Status Awal</span>
+                        <strong class="stat-value">{{ $stats['draft'] }}</strong>
+                        <span class="stat-title">Masih Draft</span>
+                    </article>
+                    <article class="stat-card">
+                        <span class="stat-kicker">Antrian</span>
+                        <strong class="stat-value">{{ $stats['pending'] }}</strong>
+                        <span class="stat-title">Menunggu Persetujuan</span>
+                    </article>
+                    <article class="stat-card">
+                        <span class="stat-kicker">Perlu Tindak Lanjut</span>
+                        <strong class="stat-value">{{ $stats['revision'] }}</strong>
+                        <span class="stat-title">Perlu Revisi</span>
+                    </article>
+                    <article class="stat-card approved">
+                        <span class="stat-kicker">Surat</span>
+                        <strong class="stat-value">{{ $stats['approved_letters'] }}</strong>
+                        <span class="stat-title">Surat Disetujui</span>
+                    </article>
+                    <article class="stat-card rejected">
+                        <span class="stat-kicker">Surat</span>
+                        <strong class="stat-value">{{ $stats['rejected_letters'] }}</strong>
+                        <span class="stat-title">Surat Ditolak</span>
+                    </article>
+                </section>
 
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-icon">📋</span>
-                            <span class="stat-label">Urgent</span>
-                        </div>
-                        <div class="stat-value">12</div>
-                        <div class="stat-title">Disposisi Aktif</div>
-                    </div>
-
-                    <div class="stat-card">
-                        <div class="stat-header">
-                            <span class="stat-icon">📃</span>
-                            <span class="stat-label">This Month</span>
-                        </div>
-                        <div class="stat-value">45</div>
-                        <div class="stat-title">Total SPPD</div>
-                    </div>
-                </div>
-
-                <!-- Two Column Grid -->
-                <div class="grid-2">
-                    <!-- Letter Tracking Status -->
-                    <div class="card">
-                        <div class="card-header">
+                <section class="dashboard-grid">
+                    <article class="panel">
+                        <div class="panel-header">
                             <div>
-                                <h3 class="card-title">Letter Tracking Status</h3>
-                                <p class="card-subtitle">Real-time status overview of all registered documents</p>
+                                <p class="eyebrow">Distribusi Status</p>
+                                <h3>Status Dokumen Saat Ini</h3>
                             </div>
                         </div>
 
-                        <div class="chart-container">
-                            <div class="chart-bar" style="height: 35%;"><span class="chart-bar-label">Pending</span></div>
-                            <div class="chart-bar" style="height: 55%;"><span class="chart-bar-label">Processed</span></div>
-                            <div class="chart-bar" style="height: 20%;"><span class="chart-bar-label">Archived</span></div>
+                        <div class="distribution-list">
+                            @foreach($statusDistribution as $label => $value)
+                                <div class="distribution-row">
+                                    <div class="distribution-meta">
+                                        <span>{{ $label }}</span>
+                                        <strong>{{ $value }}</strong>
+                                    </div>
+                                    <div class="distribution-track">
+                                        <span class="distribution-bar" style="width: {{ $maxDistribution > 0 ? ($value / $maxDistribution) * 100 : 0 }}%;"></span>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
+                    </article>
 
-                        <div class="chart-stats">
-                            <div class="stat-box">
-                                <div class="stat-box-label">Efficiency</div>
-                                <div class="stat-box-value">94.2%</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-box-label">Avg. Speed</div>
-                                <div class="stat-box-value">1.2 Days</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-box-label">Volume</div>
-                                <div class="stat-box-value">+12%</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Activity -->
-                    <div class="card">
-                        <div class="card-header">
+                    <article class="panel">
+                        <div class="panel-header">
                             <div>
-                                <h3 class="card-title">Recent Activity</h3>
-                            </div>
-                            <a href="#" class="view-all-link">View All</a>
-                        </div>
-
-                        <div class="activity-item">
-                            <div class="activity-icon">📄</div>
-                            <div class="activity-content">
-                                <div class="activity-title">New Surat Masuk Registered</div>
-                                <div class="activity-desc">Subject: Undangan Workshop Kurikulum Merdeka Fase F</div>
-                                <div class="activity-time">1m ago</div>
-                                <span class="activity-badge">Keasraman</span>
+                                <p class="eyebrow">Aktivitas Terbaru</p>
+                                <h3>Pembaruan Arsip dan Disposisi</h3>
                             </div>
                         </div>
 
-                        <div class="activity-item">
-                            <div class="activity-icon">✅</div>
-                            <div class="activity-content">
-                                <div class="activity-title">Disposition Updated</div>
-                                <div class="activity-desc">Status change: "Pending" → "Processed" for Letter ID #202241DAM008</div>
-                                <div class="activity-time">3h ago</div>
-                                <span class="activity-badge" style="background-color: #f0f4f8; color: #1565c0;">Kepala Madrasah</span>
-                            </div>
+                        <div class="activity-list">
+                            @forelse($recentActivities as $activity)
+                                <div class="activity-item">
+                                    <div class="activity-mark">{{ $activity['icon'] }}</div>
+                                    <div class="activity-copy">
+                                        <strong>{{ $activity['title'] }}</strong>
+                                        <p>{{ \Illuminate\Support\Str::limit($activity['description'], 90) }}</p>
+                                        <div class="activity-meta">
+                                            <span class="activity-type">{{ $activity['type'] }}</span>
+                                            <span class="activity-badge">{{ $activity['badge'] }}</span>
+                                            <small>{{ $activity['time_label'] }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="empty-box">Belum ada aktivitas yang tercatat.</div>
+                            @endforelse
                         </div>
-
-                        <div class="activity-item">
-                            <div class="activity-icon">📑</div>
-                            <div class="activity-content">
-                                <div class="activity-title">SPPD Issued</div>
-                                <div class="activity-desc">Destination: Semarang (Kanwil Kemenag Jatengi)</div>
-                                <div class="activity-time">5h ago</div>
-                                <span class="activity-badge" style="background-color: #fff3e0; color: #e65100;">Administrative</span>
-                            </div>
-                        </div>
-
-                        <div class="need-help">
-                            <h3>Need Assistance?</h3>
-                            <p>Connect with the IT Support team for institutional portal issues.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    </article>
+                </section>
+            </main>
         </div>
     </div>
 </body>

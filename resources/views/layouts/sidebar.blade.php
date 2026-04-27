@@ -14,40 +14,40 @@
 
     <nav class="sidebar-nav">
         <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-            <span class="nav-icon">📊</span>
+            <span class="nav-icon">&#128202;</span>
             <span class="nav-label">Dashboard</span>
         </a>
-        
+
         <a href="{{ route('surat-masuk') }}" class="nav-item {{ request()->routeIs('surat-masuk') ? 'active' : '' }}">
-            <span class="nav-icon">�</span>
+            <span class="nav-icon">&#128228;</span>
             <span class="nav-label">Surat Masuk</span>
         </a>
-        
+
         <a href="{{ route('surat-keluar') }}" class="nav-item {{ request()->routeIs('surat-keluar') ? 'active' : '' }}">
-            <span class="nav-icon">�</span>
+            <span class="nav-icon">&#128233;</span>
             <span class="nav-label">Surat Keluar</span>
         </a>
-        
-        <a href="#" class="nav-item">
-            <span class="nav-icon">�</span>
-            <span class="nav-label">Manajemen Surat</span>
+
+        <a href="{{ route('disposisi') }}" class="nav-item {{ request()->routeIs('disposisi') ? 'active' : '' }}">
+            <span class="nav-icon">&#128221;</span>
+            <span class="nav-label">Disposisi</span>
         </a>
-        
+
         <a href="{{ route('sppd') }}" class="nav-item {{ request()->routeIs('sppd') ? 'active' : '' }}">
-            <span class="nav-icon">📑</span>
+            <span class="nav-icon">&#128194;</span>
             <span class="nav-label">SPPD & Penugasan</span>
         </a>
     </nav>
 
     <div class="sidebar-footer">
         <button class="help-btn">
-            <span>❓</span>
+            <span>?</span>
             <span>Help Center</span>
         </button>
         <form method="POST" action="{{ route('logout') }}" style="width: 100%;">
             @csrf
             <button type="submit" class="logout-btn">
-                <span>🚪</span>
+                <span>&#128682;</span>
                 <span>Logout</span>
             </button>
         </form>

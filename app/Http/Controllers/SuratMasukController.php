@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\SuratMasuk;
 use App\Models\User;
 use App\Services\GoogleDriveUploadService;
+use App\Support\DispositionStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class SuratMasukController extends Controller
 {
@@ -21,8 +23,9 @@ class SuratMasukController extends Controller
         $surat_masuk = SuratMasuk::orderBy('reception_date', 'desc')->paginate(10);
         $stats = [
             'total_received' => SuratMasuk::count(),
-            'disposed' => SuratMasuk::where('status', 'disposed')->count(),
-            'pending' => SuratMasuk::where('status', 'pending')->count(),
+            'approved' => SuratMasuk::whereIn('status', DispositionStatus::databaseValuesFor('approved'))->count(),
+            'pending_approval' => SuratMasuk::whereIn('status', DispositionStatus::databaseValuesFor('pending_approval'))->count(),
+            'revision' => SuratMasuk::whereIn('status', DispositionStatus::databaseValuesFor('revision'))->count(),
         ];
 
         return view('surat-masuk', compact('surat_masuk', 'stats'));
@@ -36,7 +39,7 @@ class SuratMasukController extends Controller
             'letter_number' => 'required|string|max:255|unique:surat_masuk,letter_number',
             'subject' => 'required|string|max:500',
             'reference_number' => 'nullable|string|max:255',
-            'status' => 'required|in:pending,done,disposed',
+            'status' => ['required', Rule::in(DispositionStatus::keys())],
             'notes' => 'nullable|string',
             'letter_scan' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
@@ -46,13 +49,7 @@ class SuratMasukController extends Controller
             $originalName = $file->getClientOriginalName();
             $safeOriginalName = preg_replace('/[^A-Za-z0-9._-]/', '_', $originalName);
             $fileName = 'surat_' . now()->format('Ymd_His') . '_' . $safeOriginalName;
-
-            $uploadResult = $this->googleDriveUploadService->upload(
-                $file,
-                'surat_masuk',
-                'surat_masuk',
-                $fileName
-            );
+            $fallbackDriveUrl = config('services.google_apps_script.folders.surat_masuk.url');
 
             $surat = SuratMasuk::create([
                 'origin' => $validated['origin'],
@@ -62,14 +59,48 @@ class SuratMasukController extends Controller
                 'reference_number' => $validated['reference_number'],
                 'status' => $validated['status'],
                 'notes' => $validated['notes'],
-                'google_drive_link' => $uploadResult['url'],
+                'google_drive_link' => null,
                 'file_name' => $originalName,
                 'user_id' => $this->resolveExistingUserId(),
             ]);
 
+            $driveSynced = false;
+            $message = 'Surat berhasil disimpan ke database.';
+
+            try {
+                $uploadResult = $this->googleDriveUploadService->upload(
+                    $file,
+                    'surat_masuk',
+                    'surat_masuk',
+                    $fileName
+                );
+
+                $surat->update([
+                    'google_drive_link' => $uploadResult['url'],
+                ]);
+
+                $driveSynced = true;
+                $message = 'Surat berhasil disimpan dan file terunggah ke Drive.';
+            } catch (\Throwable $uploadException) {
+                if ($fallbackDriveUrl) {
+                    $surat->update([
+                        'google_drive_link' => $fallbackDriveUrl,
+                    ]);
+                }
+
+                Log::warning('Upload Google Drive surat masuk gagal setelah data database tersimpan.', [
+                    'surat_masuk_id' => $surat->id,
+                    'message' => $uploadException->getMessage(),
+                ]);
+
+                $message = 'Surat berhasil disimpan. File Google Drive belum bisa diverifikasi otomatis, '
+                    . 'tetapi jika file sudah terlihat di folder Drive maka notifikasi ini bisa diabaikan.';
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Surat berhasil disimpan dan file terunggah ke Drive.',
+                'message' => $message,
+                'drive_synced' => $driveSynced,
                 'data' => $surat,
             ]);
         } catch (\Throwable $e) {
@@ -100,14 +131,27 @@ class SuratMasukController extends Controller
     public function updateStatus(Request $request, $id)
     {
         try {
+            $validated = $request->validate([
+                'status' => ['required', Rule::in(DispositionStatus::keys())],
+            ]);
+
             $surat = SuratMasuk::find($id);
             if (!$surat) {
                 return response()->json(['success' => false, 'message' => 'Surat tidak ditemukan'], 404);
             }
 
-            $surat->update(['status' => $request->status]);
+            $surat->update(['status' => $validated['status']]);
 
-            return response()->json(['success' => true, 'message' => 'Status berhasil diubah']);
+            return response()->json([
+                'success' => true,
+                'message' => 'Status berhasil diubah',
+                'data' => [
+                    'status' => DispositionStatus::normalize($surat->status),
+                    'status_label' => DispositionStatus::label($surat->status),
+                    'status_class' => DispositionStatus::meta($surat->status)['class'],
+                    'notes' => $surat->notes ?: '-',
+                ],
+            ]);
         } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }

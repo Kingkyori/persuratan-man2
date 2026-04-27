@@ -17,12 +17,19 @@ class GoogleDriveUploadService
         $folderConfig = config("services.google_apps_script.folders.{$folderKey}", []);
         $folderId = $folderConfig['id'] ?? null;
         $folderUrl = $folderConfig['url'] ?? null;
+        $timeout = (int) config('services.google_apps_script.timeout', 120);
+        $connectTimeout = (int) config('services.google_apps_script.connect_timeout', 30);
+        $maxExecutionTime = max(180, $timeout + $connectTimeout + 30);
 
         if (!$webAppUrl) {
             throw new \RuntimeException(
                 'URL Google Apps Script belum dikonfigurasi. Isi GOOGLE_APPS_SCRIPT_WEB_APP_URL pada file .env.'
             );
         }
+
+        @ini_set('max_execution_time', (string) $maxExecutionTime);
+        @ini_set('default_socket_timeout', (string) $maxExecutionTime);
+        @set_time_limit($maxExecutionTime);
 
         $fileContents = file_get_contents($file->getRealPath());
 
@@ -35,8 +42,6 @@ class GoogleDriveUploadService
         $finalFileName = $fileName ?: 'surat_' . now()->format('Ymd_His') . '_' . $safeOriginalName;
         $mimeType = $file->getMimeType() ?: 'application/octet-stream';
         $base64Contents = base64_encode($fileContents);
-        $timeout = (int) config('services.google_apps_script.timeout', 120);
-        $connectTimeout = (int) config('services.google_apps_script.connect_timeout', 30);
 
         $commonPayload = [
             'action' => 'upload',
