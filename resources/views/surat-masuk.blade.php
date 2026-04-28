@@ -103,7 +103,8 @@
                                     data-nomor-surat="{{ $surat->letter_number }}"
                                     data-referensi="{{ $surat->reference_number ?: '-' }}"
                                     data-file-name="{{ $surat->file_name ?: 'File belum tersedia' }}"
-                                    data-link="{{ $surat->google_drive_link }}"
+                                    data-link="{{ route('archive.open', ['type' => 'surat-masuk', 'id' => $surat->id]) }}"
+                                    data-download-link="{{ route('archive.download', ['type' => 'surat-masuk', 'id' => $surat->id]) }}"
                                     data-share-url="{{ $surat->share_token ? route('surat-masuk.share', $surat->share_token) : '' }}"
                                     data-headmaster-status="{{ $headmasterStatusMeta['label'] }}"
                                     data-headmaster-status-key="{{ $headmasterStatusKey }}"
@@ -165,9 +166,7 @@
                                         </div>
                                     </td>
                                     <td class="action-cell">
-                                        @if($surat->google_drive_link)
-                                            <a href="{{ $surat->google_drive_link }}" target="_blank" class="btn-small" rel="noopener" title="Buka file asli">Drive</a>
-                                        @endif
+                                        <a href="{{ route('archive.open', ['type' => 'surat-masuk', 'id' => $surat->id]) }}" target="_blank" class="btn-small" rel="noopener" title="Buka file arsip">File</a>
                                         <button class="btn-small" type="button" onclick="viewDetail({{ $surat->id }})">Detail</button>
                                         <button class="btn-small btn-danger" type="button" onclick="deleteSurat({{ $surat->id }})">Hapus</button>
                                     </td>
@@ -441,8 +440,8 @@
                 ? `<a href="${escapeHtml(row.dataset.link)}" target="_blank" rel="noopener" class="btn-small">Buka File Asli</a>`
                 : '<span class="inline-empty">File asli belum tersedia</span>';
 
-            const downloadLink = row.dataset.link
-                ? `<a href="${escapeHtml(buildDownloadUrl(row.dataset.link))}" target="_blank" rel="noopener" class="btn-small btn-secondary-inline">Download File</a>`
+            const downloadLink = row.dataset.downloadLink
+                ? `<a href="${escapeHtml(row.dataset.downloadLink)}" target="_blank" rel="noopener" class="btn-small btn-secondary-inline">Download File</a>`
                 : '';
 
             const shareLink = row.dataset.shareUrl
@@ -589,20 +588,6 @@
         function normalizeNote(note) {
             const value = String(note ?? '').trim();
             return value && value !== 'null' ? value : '-';
-        }
-
-        function buildDownloadUrl(url) {
-            const filePathMatch = String(url).match(/drive\.google\.com\/file\/d\/([^/]+)/);
-            if (filePathMatch) {
-                return `https://drive.google.com/uc?export=download&id=${filePathMatch[1]}`;
-            }
-
-            const idQueryMatch = String(url).match(/[?&]id=([^&]+)/);
-            if (idQueryMatch) {
-                return `https://drive.google.com/uc?export=download&id=${idQueryMatch[1]}`;
-            }
-
-            return url;
         }
 
         function fallbackCopyText(text) {

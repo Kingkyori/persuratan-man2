@@ -113,7 +113,7 @@
                                     data-status="{{ $statusMeta['label'] }}"
                                     data-status-key="{{ $statusKey }}"
                                     data-catatan="{{ $surat->notes ?: '-' }}"
-                                    data-link="{{ $surat->google_drive_link }}"
+                                    data-link="{{ route('archive.open', ['type' => 'surat-keluar', 'id' => $surat->id]) }}"
                                 >
                                     <td>{{ optional($surat->letter_date)->format('d M Y') }}</td>
                                     <td>{{ $surat->destination }}</td>
@@ -137,9 +137,7 @@
                                         </div>
                                     </td>
                                     <td class="action-cell">
-                                        @if($surat->google_drive_link)
-                                            <a href="{{ $surat->google_drive_link }}" target="_blank" class="btn-small" rel="noopener">Drive</a>
-                                        @endif
+                                        <a href="{{ route('archive.open', ['type' => 'surat-keluar', 'id' => $surat->id]) }}" target="_blank" class="btn-small" rel="noopener">File</a>
                                         <button class="btn-small" type="button" onclick="viewDetail('{{ $surat->id }}')">Detail</button>
                                         <button class="btn-small btn-danger" type="button" onclick="deleteSuratKeluar('{{ $surat->id }}')">Hapus</button>
                                     </td>
@@ -375,9 +373,7 @@
             row.dataset.catatan = data.catatan || '-';
             row.dataset.link = data.google_drive_link || '';
 
-            const driveButton = data.google_drive_link
-                ? `<a href="${escapeHtml(data.google_drive_link)}" target="_blank" class="btn-small" rel="noopener">Drive</a>`
-                : '';
+            const driveButton = `<a href="${escapeHtml(data.google_drive_link)}" target="_blank" class="btn-small" rel="noopener">File</a>`;
 
             row.innerHTML = `
                 <td>${escapeHtml(data.tanggal)}</td>

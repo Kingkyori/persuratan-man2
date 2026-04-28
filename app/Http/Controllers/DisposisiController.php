@@ -83,6 +83,7 @@ class DisposisiController extends Controller
                     notes: $item->notes,
                     fileName: $item->file_name,
                     fileUrl: $item->google_drive_link,
+                    hasFile: filled($item->google_drive_link) || filled($item->local_file_path),
                     extra: [
                         'subject' => $item->subject,
                         'department_destination' => $item->department_destination ?: '-',
@@ -111,7 +112,8 @@ class DisposisiController extends Controller
                     status: $item->status,
                     notes: $item->notes,
                     fileName: $item->file_name,
-                    fileUrl: $item->google_drive_link
+                    fileUrl: $item->google_drive_link,
+                    hasFile: filled($item->google_drive_link) || filled($item->local_file_path)
                 );
             });
 
@@ -131,7 +133,8 @@ class DisposisiController extends Controller
                     status: $item->status,
                     notes: $item->notes,
                     fileName: $item->file_name,
-                    fileUrl: $item->google_drive_link
+                    fileUrl: $item->google_drive_link,
+                    hasFile: filled($item->google_drive_link) || filled($item->local_file_path)
                 );
             });
 
@@ -154,6 +157,7 @@ class DisposisiController extends Controller
         ?string $notes,
         ?string $fileName,
         ?string $fileUrl,
+        bool $hasFile = false,
         array $extra = []
     ): array {
         $normalizedStatus = DispositionStatus::normalize($status);
@@ -176,8 +180,8 @@ class DisposisiController extends Controller
             'notes' => $notes ?: '-',
             'notes_excerpt' => str($notes ?: 'Belum ada catatan disposisi.')->limit(56)->toString(),
             'file_name' => $fileName ?: 'File belum tersedia',
-            'file_url' => $fileUrl,
-            'preview_url' => DispositionStatus::previewUrl($fileUrl),
+            'file_url' => $hasFile ? route('archive.open', ['type' => $category, 'id' => $id]) : null,
+            'preview_url' => $hasFile ? route('archive.preview', ['type' => $category, 'id' => $id]) : null,
             'search' => strtolower(implode(' ', [
                 $typeLabel,
                 $primaryName,

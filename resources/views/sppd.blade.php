@@ -114,7 +114,7 @@
                                     data-status="{{ $statusMeta['label'] }}"
                                     data-status-key="{{ $statusKey }}"
                                     data-file="{{ $item->file_name }}"
-                                    data-link="{{ $item->google_drive_link }}"
+                                    data-link="{{ route('archive.open', ['type' => 'sppd', 'id' => $item->id]) }}"
                                     data-catatan="{{ $item->notes ?: '-' }}"
                                 >
                                     <td>{{ optional($item->departure_date)->format('d M Y') }}</td>
@@ -136,9 +136,7 @@
                                         </div>
                                     </td>
                                     <td class="action-cell">
-                                        @if($item->google_drive_link)
-                                            <a href="{{ $item->google_drive_link }}" target="_blank" class="btn-small" rel="noopener">Drive</a>
-                                        @endif
+                                        <a href="{{ route('archive.open', ['type' => 'sppd', 'id' => $item->id]) }}" target="_blank" class="btn-small" rel="noopener">File</a>
                                         <button class="btn-small" type="button" onclick="viewDetail('{{ $item->id }}')">Detail</button>
                                         <button class="btn-small btn-danger" type="button" onclick="deleteSppd('{{ $item->id }}')">Hapus</button>
                                     </td>
@@ -386,9 +384,7 @@
             row.dataset.link = data.google_drive_link || '';
             row.dataset.catatan = data.catatan || '-';
 
-            const driveButton = data.google_drive_link
-                ? `<a href="${escapeHtml(data.google_drive_link)}" target="_blank" class="btn-small" rel="noopener">Drive</a>`
-                : '';
+            const driveButton = `<a href="${escapeHtml(data.google_drive_link)}" target="_blank" class="btn-small" rel="noopener">File</a>`;
 
             row.innerHTML = `
                 <td>${escapeHtml(data.tanggal)}</td>

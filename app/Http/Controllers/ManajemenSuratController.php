@@ -72,8 +72,12 @@ class ManajemenSuratController extends Controller
                     'notes' => $item->notes ?: '-',
                     'department_notes' => $item->department_notes ?: '-',
                     'file_name' => $item->file_name ?: 'File belum tersedia',
-                    'file_url' => $item->google_drive_link,
-                    'preview_url' => DispositionStatus::previewUrl($item->google_drive_link),
+                    'file_url' => filled($item->google_drive_link) || filled($item->local_file_path)
+                        ? route('archive.open', ['type' => 'surat-masuk', 'id' => $item->id])
+                        : null,
+                    'preview_url' => filled($item->google_drive_link) || filled($item->local_file_path)
+                        ? route('archive.preview', ['type' => 'surat-masuk', 'id' => $item->id])
+                        : null,
                     'source_url' => $this->resolveSourceUrl('surat-masuk'),
                     'source_label' => $this->resolveSourceLabel('surat-masuk'),
                     'share_url' => $item->share_token ? route('surat-masuk.share', $item->share_token) : null,
@@ -119,8 +123,12 @@ class ManajemenSuratController extends Controller
                     'notes' => $item->notes ?: '-',
                     'department_notes' => '-',
                     'file_name' => $item->file_name ?: 'File belum tersedia',
-                    'file_url' => $item->google_drive_link,
-                    'preview_url' => DispositionStatus::previewUrl($item->google_drive_link),
+                    'file_url' => filled($item->google_drive_link) || filled($item->local_file_path)
+                        ? route('archive.open', ['type' => 'surat-keluar', 'id' => $item->id])
+                        : null,
+                    'preview_url' => filled($item->google_drive_link) || filled($item->local_file_path)
+                        ? route('archive.preview', ['type' => 'surat-keluar', 'id' => $item->id])
+                        : null,
                     'source_url' => $this->resolveSourceUrl('surat-keluar'),
                     'source_label' => $this->resolveSourceLabel('surat-keluar'),
                     'share_url' => null,
@@ -163,8 +171,12 @@ class ManajemenSuratController extends Controller
                     'notes' => $item->notes ?: '-',
                     'department_notes' => '-',
                     'file_name' => $item->file_name ?: 'File belum tersedia',
-                    'file_url' => $item->google_drive_link,
-                    'preview_url' => DispositionStatus::previewUrl($item->google_drive_link),
+                    'file_url' => filled($item->google_drive_link) || filled($item->local_file_path)
+                        ? route('archive.open', ['type' => 'sppd', 'id' => $item->id])
+                        : null,
+                    'preview_url' => filled($item->google_drive_link) || filled($item->local_file_path)
+                        ? route('archive.preview', ['type' => 'sppd', 'id' => $item->id])
+                        : null,
                     'source_url' => $this->resolveSourceUrl('sppd'),
                     'source_label' => $this->resolveSourceLabel('sppd'),
                     'share_url' => null,
