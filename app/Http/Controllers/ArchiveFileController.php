@@ -9,8 +9,8 @@ use App\Services\ArchiveFileService;
 use App\Support\DispositionStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Response;
 
 class ArchiveFileController extends Controller
 {

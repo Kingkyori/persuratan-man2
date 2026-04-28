@@ -437,7 +437,7 @@
             }
 
             const driveLink = row.dataset.link
-                ? `<p><strong>Google Drive:</strong> <a href="${escapeHtml(row.dataset.link)}" target="_blank" rel="noopener">Buka file</a></p>`
+                ? `<p><strong>File Arsip:</strong> <a href="${escapeHtml(row.dataset.link)}" target="_blank" rel="noopener">Buka file</a></p>`
                 : '';
 
             document.getElementById('detailContent').innerHTML = `

@@ -101,7 +101,7 @@
                         </div>
 
                         <div class="form-actions">
-                            @if($surat->google_drive_link)
+                            @if($openUrl)
                                 <a href="{{ $openUrl }}" target="_blank" rel="noopener" class="btn-secondary">Buka File Asli</a>
                             @endif
                             @if($downloadUrl)
