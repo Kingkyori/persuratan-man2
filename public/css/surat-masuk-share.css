@@ -1,0 +1,380 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background:
+        radial-gradient(circle at top right, rgba(27, 94, 32, 0.08), transparent 24%),
+        linear-gradient(180deg, #f4f7f3 0%, #edf4ef 100%);
+    color: #163122;
+}
+
+.share-shell {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 42px 24px;
+}
+
+.share-hero {
+    max-width: 880px;
+    margin-bottom: 26px;
+}
+
+.eyebrow {
+    display: inline-flex;
+    margin-bottom: 12px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: #e7f4e8;
+    color: #1b5e20;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.share-hero h1 {
+    margin-bottom: 10px;
+    font-size: 38px;
+    color: #112d1a;
+}
+
+.share-hero p {
+    font-size: 15px;
+    line-height: 1.75;
+    color: #587064;
+}
+
+.share-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #dde7df;
+    border-radius: 28px;
+    box-shadow: 0 24px 44px rgba(15, 23, 42, 0.07);
+    overflow: hidden;
+}
+
+.share-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 26px 28px;
+    border-bottom: 1px solid #e5ebe6;
+}
+
+.share-card-head h2 {
+    margin-bottom: 8px;
+    font-size: 30px;
+    color: #173826;
+}
+
+.share-card-head p {
+    color: #627268;
+    line-height: 1.6;
+}
+
+.status-group {
+    text-align: right;
+}
+
+.status-caption {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #738177;
+}
+
+.share-layout {
+    display: grid;
+    grid-template-columns: 1.15fr 0.95fr;
+    gap: 24px;
+    padding: 24px;
+}
+
+.preview-panel {
+    min-height: 680px;
+    border-radius: 22px;
+    background: linear-gradient(180deg, #edf3ee 0%, #f8fbf8 100%);
+    border: 1px solid #d8e3da;
+    padding: 18px;
+}
+
+.preview-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    color: #486152;
+    font-size: 13px;
+}
+
+.preview-frame {
+    width: 100%;
+    min-height: 610px;
+    border: none;
+    border-radius: 16px;
+    background: #ffffff;
+}
+
+.preview-placeholder {
+    display: flex;
+    min-height: 100%;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+    color: #607066;
+}
+
+.preview-placeholder strong {
+    font-size: 20px;
+    color: #173826;
+}
+
+.preview-placeholder p {
+    max-width: 420px;
+    line-height: 1.75;
+}
+
+.detail-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.department-current-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: #f8faf8;
+    border: 1px solid #e1e9e2;
+}
+
+.department-current-status span {
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #728278;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.detail-item {
+    padding: 16px;
+    border-radius: 16px;
+    background: #f8faf8;
+    border: 1px solid #e1e9e2;
+}
+
+.detail-item-wide {
+    grid-column: span 2;
+}
+
+.detail-item span,
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #728278;
+}
+
+.detail-item strong {
+    display: block;
+    color: #173826;
+    line-height: 1.7;
+}
+
+.receipt-form {
+    padding: 20px;
+    border-radius: 22px;
+    background: #fbfcfb;
+    border: 1px solid #e3ebe5;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 18px;
+}
+
+.form-group:last-of-type {
+    margin-bottom: 0;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d3ddd5;
+    border-radius: 12px;
+    background: #ffffff;
+    font-size: 14px;
+    color: #173826;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #1b5e20;
+    box-shadow: 0 0 0 4px rgba(27, 94, 32, 0.1);
+}
+
+.notes-input {
+    min-height: 160px;
+    resize: vertical;
+}
+
+.helper-text {
+    margin-top: 10px;
+    color: #5f6d64;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 22px;
+}
+
+.btn-secondary,
+.btn-success {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary {
+    background: #eff3f0;
+    color: #334155;
+}
+
+.btn-success {
+    background: #1b5e20;
+    color: #ffffff;
+}
+
+.btn-success:hover,
+.btn-secondary:hover {
+    transform: translateY(-1px);
+}
+
+.btn-success:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.badge-draft {
+    background: #e8f1ff;
+    color: #1d4ed8;
+}
+
+.badge-review {
+    background: #fff5d9;
+    color: #a16207;
+}
+
+.badge-revision {
+    background: #fde7e7;
+    color: #b42318;
+}
+
+.badge-rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-approved {
+    background: #e8f7ea;
+    color: #166534;
+}
+
+.badge-department-pending {
+    background: #fff6da;
+    color: #9a6700;
+}
+
+.badge-department-received {
+    background: #e6f7ee;
+    color: #0f766e;
+}
+
+@media (max-width: 1180px) {
+    .share-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .preview-panel {
+        min-height: 420px;
+    }
+
+    .preview-frame {
+        min-height: 360px;
+    }
+}
+
+@media (max-width: 768px) {
+    .share-shell {
+        padding: 24px 16px;
+    }
+
+    .share-card-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .status-group {
+        text-align: left;
+    }
+
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .detail-item-wide {
+        grid-column: span 1;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .btn-secondary,
+    .btn-success {
+        width: 100%;
+    }
+}

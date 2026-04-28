@@ -24,7 +24,7 @@
                     >
                 </div>
                 <div class="top-bar-note">
-                    Perubahan status di halaman ini langsung tersimpan ke data surat asalnya.
+                    Perubahan status di halaman ini langsung tersimpan ke data surat asalnya, termasuk persetujuan kepala sekolah untuk surat masuk.
                 </div>
             </div>
 
@@ -84,11 +84,16 @@
                                 <span class="type-pill type-{{ $item['category'] }}">{{ $item['type_label'] }}</span>
                                 <strong>{{ $item['primary_name'] }}</strong>
                                 <small>{{ $item['letter_number'] }}</small>
-                                <span class="row-note">{{ $item['notes_excerpt'] }}</span>
+                                <span class="row-note">
+                                    {{ $item['category'] === 'surat-masuk' ? 'Perihal: ' . ($item['subject'] ?? '-') : $item['notes_excerpt'] }}
+                                </span>
                             </div>
                             <div class="row-secondary">
-                                <span class="mobile-label">Tujuan</span>
+                                <span class="mobile-label">{{ $item['category'] === 'surat-masuk' ? 'Departemen' : 'Tujuan' }}</span>
                                 <p>{{ $item['destination'] }}</p>
+                                @if($item['category'] === 'surat-masuk')
+                                    <small class="row-helper">Status departemen: {{ $item['department_status_label'] ?? '-' }}</small>
+                                @endif
                             </div>
                             <div class="row-date">
                                 <span class="mobile-label">Tanggal</span>
@@ -143,8 +148,12 @@
                             <strong id="modalPrimaryName">-</strong>
                         </div>
                         <div class="detail-item">
-                            <span>Tujuan Surat</span>
+                            <span id="modalDestinationLabel">Tujuan Surat</span>
                             <strong id="modalDestination">-</strong>
+                        </div>
+                        <div class="detail-item detail-item-optional" id="modalDepartmentDestinationWrap" hidden>
+                            <span>Departemen Tujuan</span>
+                            <strong id="modalDepartmentDestination">-</strong>
                         </div>
                         <div class="detail-item">
                             <span>Tanggal</span>
@@ -157,13 +166,25 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="statusSelect">Status Disposisi</label>
+                        <label for="statusSelect" id="statusSelectLabel">Status Disposisi</label>
                         <select id="statusSelect" class="form-control">
                             @foreach($statusConfig as $statusKey => $statusMeta)
                                 <option value="{{ $statusKey }}">{{ $statusMeta['label'] }}</option>
                             @endforeach
                         </select>
                         <small class="helper-text" id="statusDescription"></small>
+                    </div>
+
+                    <div class="department-summary" id="departmentSummary" hidden>
+                        <div class="department-summary-head">
+                            <strong>Status Departemen</strong>
+                            <span class="badge" id="modalDepartmentStatusBadge">Belum Diterima</span>
+                        </div>
+                        <p id="modalDepartmentStatusDescription">Departemen tujuan belum memberikan konfirmasi penerimaan surat.</p>
+                        <div class="department-note-box">
+                            <span>Catatan dari departemen</span>
+                            <p id="modalDepartmentNotes">Belum ada catatan dari departemen.</p>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -178,6 +199,7 @@
 
                     <div class="form-actions modal-actions">
                         <a href="#" id="modalFileLink" class="btn-secondary btn-link" target="_blank" rel="noopener">Buka File Asli</a>
+                        <a href="#" id="modalShareLink" class="btn-secondary btn-link" target="_blank" rel="noopener" hidden>Buka Portal Departemen</a>
                         <button type="button" class="btn-success" id="saveStatusButton" onclick="saveDispositionStatus()">
                             <span id="saveStatusText">Simpan Status</span>
                             <span id="saveStatusLoader" style="display: none;">Menyimpan...</span>
@@ -192,6 +214,7 @@
     <script>
         const dispositionItems = @json($items);
         const statusConfig = @json($statusConfig);
+        const departmentStatusConfig = @json($departmentStatusConfig);
         const dispositionMap = Object.fromEntries(dispositionItems.map((item) => [item.key, item]));
         const dispositionModal = document.getElementById('dispositionModal');
         const searchInput = document.getElementById('searchInput');
@@ -202,6 +225,7 @@
         const statusDescription = document.getElementById('statusDescription');
         const modalStatusBadge = document.getElementById('modalStatusBadge');
         const modalFileLink = document.getElementById('modalFileLink');
+        const modalShareLink = document.getElementById('modalShareLink');
         const saveStatusButton = document.getElementById('saveStatusButton');
         const saveStatusText = document.getElementById('saveStatusText');
         const saveStatusLoader = document.getElementById('saveStatusLoader');
@@ -251,17 +275,27 @@
             activeItemKey = key;
 
             document.getElementById('modalTitle').textContent = item.primary_name;
-            document.getElementById('modalSubtitle').textContent = `${item.type_label} - ${item.destination}`;
+            document.getElementById('modalSubtitle').textContent = item.category === 'surat-masuk'
+                ? `${item.type_label} - ${item.subject || item.letter_number}`
+                : `${item.type_label} - ${item.destination}`;
             document.getElementById('modalTypeLabel').textContent = item.type_label;
             document.getElementById('modalPrimaryName').textContent = item.primary_name;
-            document.getElementById('modalDestination').textContent = item.destination;
+            document.getElementById('modalDestinationLabel').textContent = item.category === 'surat-masuk'
+                ? 'Perihal Surat'
+                : 'Tujuan Surat';
+            document.getElementById('modalDestination').textContent = item.category === 'surat-masuk'
+                ? (item.subject || '-')
+                : item.destination;
             document.getElementById('modalDate').textContent = item.date_label;
-            document.getElementById('modalLetterNumber').textContent = item.letter_number;
+            document.getElementById('modalLetterNumber').textContent = item.category === 'surat-masuk'
+                ? item.letter_number
+                : item.letter_number;
             document.getElementById('modalNotes').value = item.notes === '-' ? '' : item.notes;
 
             statusSelect.value = item.status;
             applyStatusBadge(item.status);
             updateStatusDescription();
+            syncDepartmentSummary(item);
 
             if (item.file_url) {
                 modalFileLink.href = item.file_url;
@@ -269,6 +303,16 @@
             } else {
                 modalFileLink.removeAttribute('href');
                 modalFileLink.style.display = 'none';
+            }
+
+            if (item.category === 'surat-masuk' && item.share_url) {
+                modalShareLink.href = item.share_url;
+                modalShareLink.hidden = false;
+                modalShareLink.style.display = 'inline-flex';
+            } else {
+                modalShareLink.removeAttribute('href');
+                modalShareLink.hidden = true;
+                modalShareLink.style.display = 'none';
             }
 
             document.getElementById('previewPanel').innerHTML = buildPreviewMarkup(item);
@@ -350,6 +394,30 @@
             const meta = statusConfig[statusSelect.value] || statusConfig.draft;
             statusDescription.textContent = meta.description;
             applyStatusBadge(statusSelect.value);
+        }
+
+        function syncDepartmentSummary(item) {
+            const isIncomingMail = item.category === 'surat-masuk';
+            const departmentWrap = document.getElementById('modalDepartmentDestinationWrap');
+            const departmentSummary = document.getElementById('departmentSummary');
+            const statusLabel = document.getElementById('statusSelectLabel');
+
+            departmentWrap.hidden = !isIncomingMail;
+            departmentSummary.hidden = !isIncomingMail;
+            statusLabel.textContent = isIncomingMail ? 'Status Kepala Sekolah' : 'Status Disposisi';
+
+            if (!isIncomingMail) {
+                return;
+            }
+
+            document.getElementById('modalDepartmentDestination').textContent = item.department_destination || '-';
+
+            const departmentMeta = departmentStatusConfig[item.department_status] || departmentStatusConfig.pending;
+            const departmentBadge = document.getElementById('modalDepartmentStatusBadge');
+            departmentBadge.className = `badge ${departmentMeta.class}`;
+            departmentBadge.textContent = departmentMeta.label;
+            document.getElementById('modalDepartmentStatusDescription').textContent = departmentMeta.description;
+            document.getElementById('modalDepartmentNotes').textContent = item.department_notes || 'Belum ada catatan dari departemen.';
         }
 
         function buildPreviewMarkup(item) {

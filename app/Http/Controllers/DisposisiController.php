@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Sppd;
 use App\Models\SuratKeluar;
 use App\Models\SuratMasuk;
+use App\Support\DepartmentReceiptStatus;
 use App\Support\DispositionStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -24,6 +25,7 @@ class DisposisiController extends Controller
 
         return view('disposisi', [
             'statusConfig' => $statusConfig,
+            'departmentStatusConfig' => DepartmentReceiptStatus::options(),
             'items' => $items->values(),
             'counts' => $counts,
         ]);
@@ -74,13 +76,22 @@ class DisposisiController extends Controller
                     typeLabel: 'Surat Masuk',
                     id: $item->id,
                     primaryName: $item->origin,
-                    destination: $item->subject,
+                    destination: $item->department_destination ?: 'Belum ditentukan',
                     letterNumber: $item->reference_number ?: $item->letter_number,
                     dateValue: optional($item->reception_date),
                     status: $item->status,
                     notes: $item->notes,
                     fileName: $item->file_name,
-                    fileUrl: $item->google_drive_link
+                    fileUrl: $item->google_drive_link,
+                    extra: [
+                        'subject' => $item->subject,
+                        'department_destination' => $item->department_destination ?: '-',
+                        'department_status' => DepartmentReceiptStatus::normalize($item->department_status),
+                        'department_status_label' => DepartmentReceiptStatus::label($item->department_status),
+                        'department_status_class' => DepartmentReceiptStatus::meta($item->department_status)['class'],
+                        'department_notes' => $item->department_notes ?: '-',
+                        'share_url' => $item->share_token ? route('surat-masuk.share', $item->share_token) : null,
+                    ]
                 );
             });
 
@@ -142,12 +153,13 @@ class DisposisiController extends Controller
         ?string $status,
         ?string $notes,
         ?string $fileName,
-        ?string $fileUrl
+        ?string $fileUrl,
+        array $extra = []
     ): array {
         $normalizedStatus = DispositionStatus::normalize($status);
         $statusMeta = DispositionStatus::meta($status);
 
-        return [
+        return array_merge([
             'id' => $id,
             'key' => "{$category}-{$id}",
             'category' => $category,
@@ -174,7 +186,7 @@ class DisposisiController extends Controller
                 $notes ?: '',
                 $dateValue?->format('d M Y') ?? '',
             ])),
-        ];
+        ], $extra);
     }
 
     private function resolveSource(string $type): array

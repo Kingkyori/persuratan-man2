@@ -2,6 +2,12 @@
 <link rel="stylesheet" href="{{ asset('css/sidebar.css') }}">
 
 <aside class="sidebar">
+    @php
+        $userRole = session('user.role', 'admin');
+        $isAdmin = $userRole === 'admin';
+        $isHeadmaster = $userRole === 'kepala_sekolah';
+    @endphp
+
     <div class="sidebar-header">
         <div class="sidebar-logo">
             <span class="logo-icon">M</span>
@@ -18,25 +24,34 @@
             <span class="nav-label">Dashboard</span>
         </a>
 
-        <a href="{{ route('surat-masuk') }}" class="nav-item {{ request()->routeIs('surat-masuk') ? 'active' : '' }}">
-            <span class="nav-icon">&#128228;</span>
-            <span class="nav-label">Surat Masuk</span>
+        <a href="{{ route('manajemen-surat') }}" class="nav-item {{ request()->routeIs('manajemen-surat') ? 'active' : '' }}">
+            <span class="nav-icon">&#128450;</span>
+            <span class="nav-label">Manajemen Surat</span>
         </a>
 
-        <a href="{{ route('surat-keluar') }}" class="nav-item {{ request()->routeIs('surat-keluar') ? 'active' : '' }}">
-            <span class="nav-icon">&#128233;</span>
-            <span class="nav-label">Surat Keluar</span>
-        </a>
+        @if($isAdmin)
+            <a href="{{ route('surat-masuk') }}" class="nav-item {{ request()->routeIs('surat-masuk') ? 'active' : '' }}">
+                <span class="nav-icon">&#128228;</span>
+                <span class="nav-label">Surat Masuk</span>
+            </a>
 
-        <a href="{{ route('disposisi') }}" class="nav-item {{ request()->routeIs('disposisi') ? 'active' : '' }}">
-            <span class="nav-icon">&#128221;</span>
-            <span class="nav-label">Disposisi</span>
-        </a>
+            <a href="{{ route('surat-keluar') }}" class="nav-item {{ request()->routeIs('surat-keluar') ? 'active' : '' }}">
+                <span class="nav-icon">&#128233;</span>
+                <span class="nav-label">Surat Keluar</span>
+            </a>
 
-        <a href="{{ route('sppd') }}" class="nav-item {{ request()->routeIs('sppd') ? 'active' : '' }}">
-            <span class="nav-icon">&#128194;</span>
-            <span class="nav-label">SPPD & Penugasan</span>
-        </a>
+            <a href="{{ route('sppd') }}" class="nav-item {{ request()->routeIs('sppd') ? 'active' : '' }}">
+                <span class="nav-icon">&#128194;</span>
+                <span class="nav-label">SPPD & Penugasan</span>
+            </a>
+        @endif
+
+        @if($isHeadmaster)
+            <a href="{{ route('disposisi') }}" class="nav-item {{ request()->routeIs('disposisi') ? 'active' : '' }}">
+                <span class="nav-icon">&#128221;</span>
+                <span class="nav-label">Disposisi</span>
+            </a>
+        @endif
     </nav>
 
     <div class="sidebar-footer">

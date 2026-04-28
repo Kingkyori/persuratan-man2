@@ -141,6 +141,7 @@
                                             <a href="{{ $surat->google_drive_link }}" target="_blank" class="btn-small" rel="noopener">Drive</a>
                                         @endif
                                         <button class="btn-small" type="button" onclick="viewDetail('{{ $surat->id }}')">Detail</button>
+                                        <button class="btn-small btn-danger" type="button" onclick="deleteSuratKeluar('{{ $surat->id }}')">Hapus</button>
                                     </td>
                                 </tr>
                             @empty
@@ -390,10 +391,46 @@
                         ${renderReviewButton(data.id, data.status, data.catatan)}
                     </div>
                 </td>
-                <td class="action-cell">${driveButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button></td>
+                <td class="action-cell">${driveButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button><button class="btn-small btn-danger" type="button" onclick="deleteSuratKeluar('${data.id}')">Hapus</button></td>
             `;
 
             tableBody.prepend(row);
+        }
+
+        async function deleteSuratKeluar(id) {
+            if (!confirm('Hapus surat keluar ini?')) {
+                return;
+            }
+
+            try {
+                const { result } = await RequestProgress.requestJson({
+                    url: `/surat-keluar/${id}`,
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    title: 'Menghapus surat keluar',
+                    initialMessage: 'Menyiapkan penghapusan surat keluar...',
+                    processingMessage: 'Menghapus arsip surat keluar dari database...',
+                    successMessage: 'Surat keluar berhasil dihapus.'
+                });
+
+                if (result.success) {
+                    const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+                    if (row) {
+                        row.remove();
+                    }
+
+                    updateVisibleCount();
+                    ensureEmptyState();
+                    RequestProgress.showNotice(result.message, 'success');
+                } else {
+                    alert(result.message || 'Gagal menghapus surat keluar.');
+                }
+            } catch (error) {
+                alert('Gagal menghapus surat keluar.');
+            }
         }
 
         function viewDetail(id) {
@@ -468,6 +505,18 @@
             const emptyStateRow = document.getElementById('emptyStateRow');
             if (emptyStateRow) {
                 emptyStateRow.remove();
+            }
+        }
+
+        function ensureEmptyState() {
+            const hasRows = tableBody.querySelectorAll('tr[data-id]').length > 0;
+            const emptyStateRow = document.getElementById('emptyStateRow');
+
+            if (!hasRows && !emptyStateRow) {
+                const row = document.createElement('tr');
+                row.id = 'emptyStateRow';
+                row.innerHTML = '<td colspan="7" class="empty-state">Belum ada data surat keluar.</td>';
+                tableBody.appendChild(row);
             }
         }
 

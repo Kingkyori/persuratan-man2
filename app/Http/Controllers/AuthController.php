@@ -38,10 +38,15 @@ class AuthController extends Controller
         // Check user dan password (case-insensitive comparison)
         if ($user && strtoupper(trim($user->password)) === strtoupper($password)) {
             // Login berhasil - simpan ke session
+            $role = $this->resolveRole($user->username, $user->role ?? null);
+
             session(['user' => [
                 'id' => $user->id,
-                'username' => $user->username
+                'username' => $user->username,
+                'role' => $role,
+                'name' => $this->resolveDisplayName($user->username, $role),
             ]]);
+
             return redirect()->intended('/dashboard');
         }
 
@@ -61,6 +66,24 @@ class AuthController extends Controller
         session()->regenerateToken();
 
         return redirect('/login');
+    }
+
+    private function resolveDisplayName(string $username, string $role): string
+    {
+        return match ($role) {
+            'kepala_sekolah' => 'Kepala Sekolah',
+            'admin' => $username === 'admin' ? 'Administrator' : ucfirst($username),
+            default => ucfirst($username),
+        };
+    }
+
+    private function resolveRole(string $username, ?string $role): string
+    {
+        if (in_array(strtolower($username), ['kepsek', 'kepala_sekolah'], true)) {
+            return 'kepala_sekolah';
+        }
+
+        return $role === 'kepala_sekolah' ? 'kepala_sekolah' : 'admin';
     }
 }
 

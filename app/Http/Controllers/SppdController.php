@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Sppd;
 use App\Models\User;
+use App\Services\ArchiveFileService;
 use App\Services\GoogleDriveUploadService;
 use App\Support\DispositionStatus;
 use Illuminate\Http\Request;
@@ -14,7 +15,8 @@ use Illuminate\Validation\Rule;
 class SppdController extends Controller
 {
     public function __construct(
-        private GoogleDriveUploadService $googleDriveUploadService
+        private GoogleDriveUploadService $googleDriveUploadService,
+        private ArchiveFileService $archiveFileService
     ) {
     }
 
@@ -47,6 +49,7 @@ class SppdController extends Controller
             $safeOriginalName = preg_replace('/[^A-Za-z0-9._-]/', '_', $originalName);
             $fileName = 'sppd_' . now()->format('Ymd_His') . '_' . $safeOriginalName;
             $fallbackDriveUrl = config('services.google_apps_script.folders.sppd.url');
+            $localFilePath = $this->archiveFileService->storeLocalBackup($file, 'sppd', $fileName);
 
             $record = Sppd::create([
                 'employee_id' => null,
@@ -58,6 +61,7 @@ class SppdController extends Controller
                 'status' => $validated['status'],
                 'notes' => $validated['notes'],
                 'google_drive_link' => null,
+                'local_file_path' => $localFilePath,
                 'file_name' => $originalName,
                 'user_id' => $this->resolveExistingUserId(),
             ]);
@@ -73,17 +77,31 @@ class SppdController extends Controller
                     $fileName
                 );
 
-                $record->update([
-                    'google_drive_link' => $uploadResult['url'],
-                ]);
+                $resolvedDriveUrl = $this->archiveFileService->resolveDriveFileUrl(
+                    $uploadResult['url'] ?? null,
+                    $fileName
+                );
 
-                $driveSynced = true;
-                $message = 'Data SPPD berhasil disimpan dan file terunggah ke Drive.';
-            } catch (\Throwable $uploadException) {
-                if ($fallbackDriveUrl) {
+                if ($resolvedDriveUrl) {
                     $record->update([
-                        'google_drive_link' => $fallbackDriveUrl,
+                        'google_drive_link' => $resolvedDriveUrl,
                     ]);
+                }
+
+                $driveSynced = (bool) $resolvedDriveUrl;
+                $message = $resolvedDriveUrl
+                    ? 'Data SPPD berhasil disimpan dan file terhubung ke Drive.'
+                    : 'Data SPPD berhasil disimpan. File cadangan tetap bisa dibuka dari sistem meski tautan Drive belum tervalidasi.';
+            } catch (\Throwable $uploadException) {
+                $resolvedDriveUrl = $fallbackDriveUrl
+                    ? $this->archiveFileService->resolveDriveFileUrl($fallbackDriveUrl, $fileName)
+                    : null;
+
+                if ($resolvedDriveUrl) {
+                    $record->update([
+                        'google_drive_link' => $resolvedDriveUrl,
+                    ]);
+                    $driveSynced = true;
                 }
 
                 Log::warning('Upload Google Drive SPPD gagal setelah data database tersimpan.', [
@@ -91,8 +109,9 @@ class SppdController extends Controller
                     'message' => $uploadException->getMessage(),
                 ]);
 
-                $message = 'Data SPPD berhasil disimpan. File Google Drive belum bisa diverifikasi otomatis, '
-                    . 'tetapi jika file sudah terlihat di folder Drive maka notifikasi ini bisa diabaikan.';
+                $message = $resolvedDriveUrl
+                    ? 'Data SPPD berhasil disimpan. File ditemukan di folder Drive dan sekarang bisa dibuka dari sistem.'
+                    : 'Data SPPD berhasil disimpan. File tetap aman dan bisa dibuka dari sistem, tetapi tautan Drive belum berhasil diverifikasi.';
             }
 
             return response()->json([
@@ -108,7 +127,8 @@ class SppdController extends Controller
                     'kepentingan' => $record->purpose,
                     'status' => $record->status,
                     'file' => $record->file_name,
-                    'google_drive_link' => $record->google_drive_link,
+                    'google_drive_link' => route('archive.open', ['type' => 'sppd', 'id' => $record->id]),
+                    'download_url' => route('archive.download', ['type' => 'sppd', 'id' => $record->id]),
                     'catatan' => $record->notes ?: '-',
                 ],
             ]);
@@ -148,6 +168,25 @@ class SppdController extends Controller
                     'status_class' => DispositionStatus::meta($record->status)['class'],
                     'notes' => $record->notes ?: '-',
                 ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $record = Sppd::find($id);
+            if (!$record) {
+                return response()->json(['success' => false, 'message' => 'Data SPPD tidak ditemukan'], 404);
+            }
+
+            $record->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data SPPD berhasil dihapus',
             ]);
         } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);

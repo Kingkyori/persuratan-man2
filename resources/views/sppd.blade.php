@@ -140,6 +140,7 @@
                                             <a href="{{ $item->google_drive_link }}" target="_blank" class="btn-small" rel="noopener">Drive</a>
                                         @endif
                                         <button class="btn-small" type="button" onclick="viewDetail('{{ $item->id }}')">Detail</button>
+                                        <button class="btn-small btn-danger" type="button" onclick="deleteSppd('{{ $item->id }}')">Hapus</button>
                                     </td>
                                 </tr>
                             @empty
@@ -402,10 +403,46 @@
                         ${renderReviewButton(data.id, data.status, data.catatan)}
                     </div>
                 </td>
-                <td class="action-cell">${driveButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button></td>
+                <td class="action-cell">${driveButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button><button class="btn-small btn-danger" type="button" onclick="deleteSppd('${data.id}')">Hapus</button></td>
             `;
 
             tableBody.prepend(row);
+        }
+
+        async function deleteSppd(id) {
+            if (!confirm('Hapus data SPPD ini?')) {
+                return;
+            }
+
+            try {
+                const { result } = await RequestProgress.requestJson({
+                    url: `/sppd/${id}`,
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    title: 'Menghapus data SPPD',
+                    initialMessage: 'Menyiapkan penghapusan data SPPD...',
+                    processingMessage: 'Menghapus arsip SPPD dari database...',
+                    successMessage: 'Data SPPD berhasil dihapus.'
+                });
+
+                if (result.success) {
+                    const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+                    if (row) {
+                        row.remove();
+                    }
+
+                    updateVisibleCount();
+                    ensureEmptyState();
+                    RequestProgress.showNotice(result.message, 'success');
+                } else {
+                    alert(result.message || 'Gagal menghapus data SPPD.');
+                }
+            } catch (error) {
+                alert('Gagal menghapus data SPPD.');
+            }
         }
 
         function viewDetail(id) {
@@ -485,6 +522,18 @@
             const emptyStateRow = document.getElementById('emptyStateRow');
             if (emptyStateRow) {
                 emptyStateRow.remove();
+            }
+        }
+
+        function ensureEmptyState() {
+            const hasRows = tableBody.querySelectorAll('tr[data-id]').length > 0;
+            const emptyStateRow = document.getElementById('emptyStateRow');
+
+            if (!hasRows && !emptyStateRow) {
+                const row = document.createElement('tr');
+                row.id = 'emptyStateRow';
+                row.innerHTML = '<td colspan="8" class="empty-state">Belum ada data SPPD.</td>';
+                tableBody.appendChild(row);
             }
         }
 

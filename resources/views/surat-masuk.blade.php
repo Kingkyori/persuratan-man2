@@ -12,6 +12,7 @@
 <body>
     @php
         $statusConfig = \App\Support\DispositionStatus::options();
+        $departmentStatusConfig = \App\Support\DepartmentReceiptStatus::options();
     @endphp
 
     <div class="main-layout">
@@ -20,17 +21,18 @@
         <main class="main-content">
             <div class="top-bar">
                 <div class="search-container">
-                    <input type="text" class="search-input" id="searchInput" placeholder="Cari pengirim, perihal, atau nomor surat...">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Cari pengirim, perihal, nomor surat, atau departemen tujuan...">
                 </div>
                 <div class="top-bar-note">
-                    Status dan catatan disposisi pada surat masuk akan sinkron dengan halaman disposisi.
+                    Status kepala sekolah diperbarui dari halaman disposisi, sedangkan status departemen diisi lewat link share yang dibagikan admin.
                 </div>
             </div>
 
             <div class="page-header">
                 <div class="header-content">
+                    <span class="eyebrow">ARSIP MASUK</span>
                     <h1>Surat Masuk</h1>
-                    <p>Kelola arsip surat masuk, pantau status persetujuan, dan lihat catatan disposisi langsung dari daftar surat.</p>
+                    <p>Kelola surat masuk, tentukan departemen tujuan, bagikan link penerimaan ke departemen terkait, dan pantau dua alur status dalam satu tabel.</p>
                 </div>
                 <button class="btn-primary register-btn" id="btnOpenModal" type="button">
                     <span>+</span> Tambah Surat Masuk
@@ -43,16 +45,16 @@
                     <div class="stat-value">{{ $stats['total_received'] ?? 0 }}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Disetujui</div>
+                    <div class="stat-label">ACC Kepala Sekolah</div>
                     <div class="stat-value">{{ $stats['approved'] ?? 0 }}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Menunggu</div>
+                    <div class="stat-label">Menunggu ACC</div>
                     <div class="stat-value">{{ $stats['pending_approval'] ?? 0 }}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Revisi</div>
-                    <div class="stat-value">{{ $stats['revision'] ?? 0 }}</div>
+                    <div class="stat-label">Dept. Sudah Terima</div>
+                    <div class="stat-value">{{ $stats['department_received'] ?? 0 }}</div>
                 </div>
             </div>
 
@@ -60,7 +62,13 @@
                 <div class="section-header">
                     <div>
                         <h2>Daftar Arsip Surat Masuk</h2>
-                        <p class="section-description">Klik tanda `!` di samping status untuk melihat catatan disposisi atau perubahan review.</p>
+                        <p class="section-description">
+                            Status kepala sekolah hanya berubah dari halaman disposisi. Tombol `!` di kolom departemen menampilkan catatan dari departemen ke admin, dan tombol share menyalin link halaman konfirmasi penerimaan.
+                        </p>
+                    </div>
+                    <div class="workflow-note">
+                        <strong>Alur singkat:</strong>
+                        Admin input surat -> Kepala sekolah ACC di disposisi -> Admin kirim link ke departemen -> Departemen konfirmasi terima
                     </div>
                 </div>
 
@@ -71,29 +79,38 @@
                                 <th>Tanggal Terima</th>
                                 <th>Asal Surat</th>
                                 <th>Perihal</th>
-                                <th>Nomor Referensi</th>
-                                <th>Status</th>
+                                <th>Departemen Tujuan</th>
+                                <th>Status Kepala Sekolah</th>
+                                <th>Status Departemen</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
                             @forelse($surat_masuk as $surat)
                                 @php
-                                    $statusKey = \App\Support\DispositionStatus::normalize($surat->status);
-                                    $statusMeta = $statusConfig[$statusKey] ?? $statusConfig['draft'];
-                                    $hasReviewSignal = filled($surat->notes) || $statusKey !== 'draft';
+                                    $headmasterStatusKey = \App\Support\DispositionStatus::normalize($surat->status);
+                                    $headmasterStatusMeta = $statusConfig[$headmasterStatusKey] ?? $statusConfig['draft'];
+                                    $departmentStatusKey = \App\Support\DepartmentReceiptStatus::normalize($surat->department_status);
+                                    $departmentStatusMeta = $departmentStatusConfig[$departmentStatusKey] ?? $departmentStatusConfig['pending'];
                                 @endphp
                                 <tr
                                     data-id="{{ $surat->id }}"
-                                    data-search="{{ strtolower($surat->origin . ' ' . $surat->subject . ' ' . ($surat->reference_number ?? $surat->letter_number)) }}"
-                                    data-catatan="{{ $surat->notes ?: '-' }}"
-                                    data-status="{{ $statusMeta['label'] }}"
-                                    data-status-key="{{ $statusKey }}"
+                                    data-search="{{ strtolower(implode(' ', [$surat->origin, $surat->subject, $surat->letter_number, $surat->reference_number, $surat->department_destination])) }}"
                                     data-tanggal="{{ $surat->reception_date->format('d M Y H:i') }}"
                                     data-pengirim="{{ $surat->origin }}"
                                     data-perihal="{{ $surat->subject }}"
-                                    data-referensi="{{ $surat->reference_number ?? $surat->letter_number }}"
+                                    data-departemen="{{ $surat->department_destination ?: '-' }}"
+                                    data-nomor-surat="{{ $surat->letter_number }}"
+                                    data-referensi="{{ $surat->reference_number ?: '-' }}"
+                                    data-file-name="{{ $surat->file_name ?: 'File belum tersedia' }}"
                                     data-link="{{ $surat->google_drive_link }}"
+                                    data-share-url="{{ $surat->share_token ? route('surat-masuk.share', $surat->share_token) : '' }}"
+                                    data-headmaster-status="{{ $headmasterStatusMeta['label'] }}"
+                                    data-headmaster-status-key="{{ $headmasterStatusKey }}"
+                                    data-headmaster-note="{{ $surat->notes ?: '-' }}"
+                                    data-department-status="{{ $departmentStatusMeta['label'] }}"
+                                    data-department-status-key="{{ $departmentStatusKey }}"
+                                    data-department-note="{{ $surat->department_notes ?: '-' }}"
                                 >
                                     <td>
                                         <div class="date-cell">{{ $surat->reception_date->format('d M Y') }}</div>
@@ -101,30 +118,55 @@
                                     </td>
                                     <td>
                                         <strong>{{ $surat->origin }}</strong>
+                                        <small class="sub-copy">{{ $surat->reference_number ?: $surat->letter_number }}</small>
                                     </td>
-                                    <td>{{ \Illuminate\Support\Str::limit($surat->subject, 55) }}</td>
-                                    <td>{{ $surat->reference_number ?? $surat->letter_number }}</td>
                                     <td>
-                                        <div class="status-cell">
-                                            <select class="status-select" onchange="updateStatus({{ $surat->id }}, this)">
-                                                @foreach($statusConfig as $optionKey => $statusMetaOption)
-                                                    <option value="{{ $optionKey }}" {{ $statusKey === $optionKey ? 'selected' : '' }}>
-                                                        {{ $statusMetaOption['label'] }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
+                                        <div class="subject-cell">{{ \Illuminate\Support\Str::limit($surat->subject, 70) }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="department-cell">
+                                            <strong>{{ $surat->department_destination ?: '-' }}</strong>
+                                            <small>Link konfirmasi akan diarahkan ke departemen ini</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="headmaster-status-cell">
+                                            <div class="status-stack">
+                                                <span class="badge {{ $headmasterStatusMeta['class'] }}">{{ $headmasterStatusMeta['label'] }}</span>
+                                                <small>Diubah dari disposisi</small>
+                                            </div>
                                             <button
-                                                class="review-indicator {{ filled($surat->notes) ? 'has-note' : 'has-status' }}"
+                                                class="icon-button note-button {{ filled($surat->notes) ? 'has-note' : '' }}"
                                                 type="button"
-                                                onclick="openNoteModal({{ $surat->id }})"
-                                                title="Lihat catatan disposisi"
-                                                {{ $hasReviewSignal ? '' : 'hidden' }}
+                                                onclick="openHeadmasterNoteModal({{ $surat->id }})"
+                                                title="Lihat catatan kepala sekolah"
                                             >!</button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="department-status-cell">
+                                            <span class="badge {{ $departmentStatusMeta['class'] }}">{{ $departmentStatusMeta['label'] }}</span>
+                                            <button
+                                                class="icon-button note-button {{ filled($surat->department_notes) ? 'has-note' : '' }}"
+                                                type="button"
+                                                onclick="openDepartmentNoteModal({{ $surat->id }})"
+                                                title="Lihat catatan departemen"
+                                            >!</button>
+                                            <button
+                                                class="icon-button share-button"
+                                                type="button"
+                                                onclick="copyShareLink({{ $surat->id }})"
+                                                title="Salin link untuk departemen"
+                                            >
+                                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path d="M15 8a3 3 0 0 1 0 6h-1v-2h1a1 1 0 0 0 0-2h-4a1 1 0 0 0 0 2h1v2h-1a3 3 0 1 1 0-6h4Zm-7 3h2v2H8a4 4 0 0 1 0-8h4v2H8a2 2 0 1 0 0 4Zm8 0h-2V9h2a4 4 0 1 1 0 8h-4v-2h4a2 2 0 0 0 0-4Z"></path>
+                                                </svg>
+                                            </button>
                                         </div>
                                     </td>
                                     <td class="action-cell">
                                         @if($surat->google_drive_link)
-                                            <a href="{{ $surat->google_drive_link }}" target="_blank" class="btn-small" rel="noopener" title="Buka di Drive">Drive</a>
+                                            <a href="{{ $surat->google_drive_link }}" target="_blank" class="btn-small" rel="noopener" title="Buka file asli">Drive</a>
                                         @endif
                                         <button class="btn-small" type="button" onclick="viewDetail({{ $surat->id }})">Detail</button>
                                         <button class="btn-small btn-danger" type="button" onclick="deleteSurat({{ $surat->id }})">Hapus</button>
@@ -132,7 +174,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="empty-state">Data surat masuk belum tersedia.</td>
+                                    <td colspan="7" class="empty-state">Data surat masuk belum tersedia.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -147,60 +189,58 @@
     </div>
 
     <div class="modal" id="modalRegister">
-        <div class="modal-content">
+        <div class="modal-content large-modal-content">
             <div class="modal-header">
-                <h2>Tambah Surat Masuk</h2>
+                <div>
+                    <h2>Tambah Surat Masuk</h2>
+                    <p class="modal-subtitle">Setelah tersimpan, status kepala sekolah otomatis menunggu persetujuan dan link konfirmasi departemen langsung tersedia.</p>
+                </div>
                 <button class="modal-close" id="btnCloseModal" type="button">&times;</button>
             </div>
 
-            <form id="formRegisterSurat" enctype="multipart/form-data">
+            <form id="formRegisterSurat" class="register-form" enctype="multipart/form-data">
                 @csrf
-                <div class="form-row">
+
+                <div class="form-banner">
+                    Admin hanya menginput data surat dan menentukan departemen tujuan. Persetujuan kepala sekolah dilakukan lewat halaman disposisi.
+                </div>
+
+                <div class="form-grid">
                     <div class="form-group">
                         <label>Asal / Pengirim <span class="required">*</span></label>
-                        <input type="text" name="origin" class="form-control" required placeholder="Contoh: Kemenag Solo">
+                        <input type="text" name="origin" class="form-control" required placeholder="Contoh: Kemenag Kota Surakarta">
                     </div>
                     <div class="form-group">
                         <label>Tanggal Terima <span class="required">*</span></label>
                         <input type="date" name="reception_date" class="form-control" required>
                     </div>
-                </div>
-
-                <div class="form-row">
                     <div class="form-group">
                         <label>Nomor Surat <span class="required">*</span></label>
-                        <input type="text" name="letter_number" class="form-control" required>
+                        <input type="text" name="letter_number" class="form-control" required placeholder="Contoh: 421.5/SM/2026">
                     </div>
-                    <div class="form-group">
-                        <label>Perihal <span class="required">*</span></label>
-                        <input type="text" name="subject" class="form-control" required>
-                    </div>
-                </div>
-
-                <div class="form-row">
                     <div class="form-group">
                         <label>Nomor Referensi</label>
-                        <input type="text" name="reference_number" class="form-control">
+                        <input type="text" name="reference_number" class="form-control" placeholder="Opsional">
                     </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select name="status" class="form-control">
-                            @foreach($statusConfig as $statusKey => $statusMeta)
-                                <option value="{{ $statusKey }}">{{ $statusMeta['label'] }}</option>
-                            @endforeach
-                        </select>
+                    <div class="form-group form-group-wide">
+                        <label>Perihal <span class="required">*</span></label>
+                        <input type="text" name="subject" class="form-control" required placeholder="Contoh: Permohonan data siswa penerima bantuan">
+                    </div>
+                    <div class="form-group form-group-wide">
+                        <label>Departemen Tujuan <span class="required">*</span></label>
+                        <input type="text" name="department_destination" class="form-control" required placeholder="Contoh: Tata Usaha / Kurikulum / Humas">
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Catatan</label>
-                    <textarea name="notes" class="form-control" rows="2" placeholder="Tambahkan catatan singkat bila perlu"></textarea>
+                    <label>Catatan Admin</label>
+                    <textarea name="notes" class="form-control" rows="3" placeholder="Catatan internal untuk kepala sekolah atau admin lain"></textarea>
                 </div>
 
                 <div class="form-group">
                     <label>File Scan Surat <span class="required">*</span></label>
                     <div class="file-upload" id="fileUploadArea">
-                        <span id="icon-upload">[ Upload ]</span>
+                        <span class="upload-symbol">[ Upload ]</span>
                         <p id="file-name-display">Klik untuk memilih file surat</p>
                         <small>Format yang didukung: PDF, JPG, JPEG, PNG</small>
                         <input type="file" name="letter_scan" id="letter_scan_input" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" hidden required>
@@ -224,23 +264,47 @@
                 <h2>Detail Surat Masuk</h2>
                 <button class="modal-close" type="button" onclick="closeDetailModal()">&times;</button>
             </div>
-            <div class="modal-body detail-info" id="detailContent"></div>
+            <div class="modal-body detail-body" id="detailContent"></div>
         </div>
     </div>
 
-    <div class="modal" id="modalNote">
+    <div class="modal" id="modalDepartmentNote">
         <div class="modal-content note-modal-content">
             <div class="modal-header">
-                <h2>Catatan Disposisi</h2>
-                <button class="modal-close" type="button" onclick="closeNoteModal()">&times;</button>
+                <h2>Catatan Departemen</h2>
+                <button class="modal-close" type="button" onclick="closeDepartmentNoteModal()">&times;</button>
             </div>
             <div class="modal-body note-body">
                 <div class="note-summary">
-                    <strong id="noteStatusLabel">Status surat</strong>
-                    <span id="noteStatusValue" class="note-status-pill">Draft</span>
+                    <div>
+                        <strong id="departmentNoteTitle">Status departemen</strong>
+                        <p id="departmentNoteDepartment" class="note-department-name">-</p>
+                    </div>
+                    <span id="departmentNoteStatus" class="note-status-pill">Belum Diterima</span>
                 </div>
                 <div class="note-panel">
-                    <p id="noteText">Belum ada catatan disposisi.</p>
+                    <p id="departmentNoteText">Belum ada catatan dari departemen.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="modalHeadmasterNote">
+        <div class="modal-content note-modal-content">
+            <div class="modal-header">
+                <h2>Catatan Kepala Sekolah</h2>
+                <button class="modal-close" type="button" onclick="closeHeadmasterNoteModal()">&times;</button>
+            </div>
+            <div class="modal-body note-body">
+                <div class="note-summary">
+                    <div>
+                        <strong id="headmasterNoteTitle">Status kepala sekolah</strong>
+                        <p id="headmasterNoteSource" class="note-department-name">Catatan dari halaman disposisi</p>
+                    </div>
+                    <span id="headmasterNoteStatus" class="note-status-pill">Draft</span>
+                </div>
+                <div class="note-panel">
+                    <p id="headmasterNoteText">Belum ada catatan dari kepala sekolah.</p>
                 </div>
             </div>
         </div>
@@ -250,12 +314,14 @@
     <script>
         const modal = document.getElementById('modalRegister');
         const detailModal = document.getElementById('modalDetail');
-        const noteModal = document.getElementById('modalNote');
+        const departmentNoteModal = document.getElementById('modalDepartmentNote');
+        const headmasterNoteModal = document.getElementById('modalHeadmasterNote');
         const form = document.getElementById('formRegisterSurat');
         const fileInput = document.getElementById('letter_scan_input');
         const fileArea = document.getElementById('fileUploadArea');
         const fileNameDisplay = document.getElementById('file-name-display');
         const searchInput = document.getElementById('searchInput');
+        const tableBody = document.getElementById('tableBody');
 
         document.getElementById('btnOpenModal').onclick = () => {
             modal.style.display = 'flex';
@@ -335,42 +401,6 @@
             }
         };
 
-        async function updateStatus(id, selectElement) {
-            const row = document.querySelector(`tr[data-id="${id}"]`);
-            const previousStatus = row.dataset.statusKey || selectElement.value;
-            const newStatus = selectElement.value;
-
-            try {
-                const { response, result } = await RequestProgress.requestJson({
-                    url: `/surat-masuk/${id}/status`,
-                    method: 'POST',
-                    data: { status: newStatus },
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    },
-                    title: 'Menyimpan status surat',
-                    initialMessage: 'Mengirim perubahan status surat masuk...',
-                    processingMessage: 'Menyimpan perubahan status ke database...',
-                    successMessage: 'Status surat berhasil diperbarui.'
-                });
-
-                if (!response.ok || !result.success) {
-                    throw new Error(result.message || 'Gagal mengubah status.');
-                }
-
-                row.dataset.statusKey = result.data.status;
-                row.dataset.status = result.data.status_label;
-                row.dataset.catatan = result.data.notes || row.dataset.catatan || '-';
-                renderReviewIndicator(row);
-                RequestProgress.showNotice(result.message, 'success');
-            } catch (error) {
-                selectElement.value = previousStatus;
-                alert(error.message || 'Gagal mengubah status.');
-            }
-        }
-
         async function deleteSurat(id) {
             if (!confirm('Hapus surat ini?')) {
                 return;
@@ -401,46 +431,136 @@
         }
 
         function viewDetail(id) {
-            const row = document.querySelector(`tr[data-id="${id}"]`);
+            const row = tableBody.querySelector(`tr[data-id="${id}"]`);
 
             if (!row) {
                 return;
             }
 
             const driveLink = row.dataset.link
-                ? `<p><strong>Google Drive:</strong> <a href="${escapeHtml(row.dataset.link)}" target="_blank" rel="noopener">Buka file</a></p>`
+                ? `<a href="${escapeHtml(row.dataset.link)}" target="_blank" rel="noopener" class="btn-small">Buka File Asli</a>`
+                : '<span class="inline-empty">File asli belum tersedia</span>';
+
+            const downloadLink = row.dataset.link
+                ? `<a href="${escapeHtml(buildDownloadUrl(row.dataset.link))}" target="_blank" rel="noopener" class="btn-small btn-secondary-inline">Download File</a>`
+                : '';
+
+            const shareLink = row.dataset.shareUrl
+                ? `<button type="button" class="btn-small" onclick="copyShareLink(${id})">Salin Link Departemen</button>`
                 : '';
 
             document.getElementById('detailContent').innerHTML = `
-                <p><strong>Tanggal Terima:</strong> ${escapeHtml(row.dataset.tanggal)}</p>
-                <p><strong>Asal Surat:</strong> ${escapeHtml(row.dataset.pengirim)}</p>
-                <p><strong>Perihal:</strong> ${escapeHtml(row.dataset.perihal)}</p>
-                <p><strong>Nomor Referensi:</strong> ${escapeHtml(row.dataset.referensi)}</p>
-                <p><strong>Status:</strong> ${escapeHtml(row.dataset.status)}</p>
-                <p><strong>Catatan:</strong> ${escapeHtml(normalizeNote(row.dataset.catatan))}</p>
-                ${driveLink}
+                <div class="detail-grid">
+                    <div class="detail-card">
+                        <span>Tanggal Terima</span>
+                        <strong>${escapeHtml(row.dataset.tanggal)}</strong>
+                    </div>
+                    <div class="detail-card">
+                        <span>Asal Surat</span>
+                        <strong>${escapeHtml(row.dataset.pengirim)}</strong>
+                    </div>
+                    <div class="detail-card">
+                        <span>Perihal</span>
+                        <strong>${escapeHtml(row.dataset.perihal)}</strong>
+                    </div>
+                    <div class="detail-card">
+                        <span>Departemen Tujuan</span>
+                        <strong>${escapeHtml(row.dataset.departemen)}</strong>
+                    </div>
+                    <div class="detail-card">
+                        <span>Nomor Surat</span>
+                        <strong>${escapeHtml(row.dataset.nomorSurat)}</strong>
+                    </div>
+                    <div class="detail-card">
+                        <span>Nomor Referensi</span>
+                        <strong>${escapeHtml(row.dataset.referensi)}</strong>
+                    </div>
+                    <div class="detail-card">
+                        <span>Status Kepala Sekolah</span>
+                        <strong>${escapeHtml(row.dataset.headmasterStatus)}</strong>
+                    </div>
+                    <div class="detail-card">
+                        <span>Status Departemen</span>
+                        <strong>${escapeHtml(row.dataset.departmentStatus)}</strong>
+                    </div>
+                </div>
+
+                <div class="detail-note-group">
+                    <div class="detail-note-card">
+                        <span>Catatan Admin / Disposisi</span>
+                        <p>${escapeHtml(normalizeNote(row.dataset.headmasterNote))}</p>
+                    </div>
+                    <div class="detail-note-card">
+                        <span>Catatan Departemen</span>
+                        <p>${escapeHtml(normalizeNote(row.dataset.departmentNote))}</p>
+                    </div>
+                </div>
+
+                <div class="detail-actions">
+                    ${driveLink}
+                    ${downloadLink}
+                    ${shareLink}
+                </div>
             `;
 
             detailModal.style.display = 'flex';
         }
 
-        function openNoteModal(id) {
-            const row = document.querySelector(`tr[data-id="${id}"]`);
+        function openDepartmentNoteModal(id) {
+            const row = tableBody.querySelector(`tr[data-id="${id}"]`);
 
             if (!row) {
                 return;
             }
 
-            const note = normalizeNote(row.dataset.catatan);
-            const status = row.dataset.status || 'Draft';
+            document.getElementById('departmentNoteTitle').textContent = 'Status departemen saat ini';
+            document.getElementById('departmentNoteDepartment').textContent = row.dataset.departemen || '-';
+            document.getElementById('departmentNoteStatus').textContent = row.dataset.departmentStatus || 'Belum Diterima';
+            document.getElementById('departmentNoteText').textContent = normalizeNote(row.dataset.departmentNote) === '-'
+                ? 'Belum ada catatan dari departemen tujuan.'
+                : normalizeNote(row.dataset.departmentNote);
 
-            document.getElementById('noteStatusLabel').textContent = 'Status terakhir surat';
-            document.getElementById('noteStatusValue').textContent = status;
-            document.getElementById('noteText').textContent = note === '-'
-                ? 'Belum ada catatan tambahan. Surat ini sudah pernah ditinjau atau statusnya sudah diperbarui.'
-                : note;
+            departmentNoteModal.style.display = 'flex';
+        }
 
-            noteModal.style.display = 'flex';
+        function openHeadmasterNoteModal(id) {
+            const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+
+            if (!row) {
+                return;
+            }
+
+            document.getElementById('headmasterNoteTitle').textContent = 'Status kepala sekolah saat ini';
+            document.getElementById('headmasterNoteSource').textContent = 'Catatan dari disposisi / kepala sekolah';
+            document.getElementById('headmasterNoteStatus').textContent = row.dataset.headmasterStatus || 'Draft';
+            document.getElementById('headmasterNoteText').textContent = normalizeNote(row.dataset.headmasterNote) === '-'
+                ? 'Belum ada catatan dari kepala sekolah. Jika status berubah tanpa catatan, perubahan tetap tercatat dari halaman disposisi.'
+                : normalizeNote(row.dataset.headmasterNote);
+
+            headmasterNoteModal.style.display = 'flex';
+        }
+
+        async function copyShareLink(id) {
+            const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+            const shareUrl = row?.dataset.shareUrl || '';
+
+            if (!shareUrl) {
+                alert('Link share belum tersedia untuk surat ini.');
+                return;
+            }
+
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(shareUrl);
+                } else {
+                    fallbackCopyText(shareUrl);
+                }
+
+                RequestProgress.showNotice('Link departemen berhasil disalin.', 'success');
+            } catch (error) {
+                fallbackCopyText(shareUrl);
+                RequestProgress.showNotice('Link departemen berhasil disalin.', 'success');
+            }
         }
 
         function closeModal() {
@@ -453,8 +573,12 @@
             detailModal.style.display = 'none';
         }
 
-        function closeNoteModal() {
-            noteModal.style.display = 'none';
+        function closeDepartmentNoteModal() {
+            departmentNoteModal.style.display = 'none';
+        }
+
+        function closeHeadmasterNoteModal() {
+            headmasterNoteModal.style.display = 'none';
         }
 
         function resetFileState() {
@@ -467,19 +591,30 @@
             return value && value !== 'null' ? value : '-';
         }
 
-        function hasReviewSignal(statusKey, note) {
-            return String(statusKey || 'draft') !== 'draft' || normalizeNote(note) !== '-';
+        function buildDownloadUrl(url) {
+            const filePathMatch = String(url).match(/drive\.google\.com\/file\/d\/([^/]+)/);
+            if (filePathMatch) {
+                return `https://drive.google.com/uc?export=download&id=${filePathMatch[1]}`;
+            }
+
+            const idQueryMatch = String(url).match(/[?&]id=([^&]+)/);
+            if (idQueryMatch) {
+                return `https://drive.google.com/uc?export=download&id=${idQueryMatch[1]}`;
+            }
+
+            return url;
         }
 
-        function renderReviewIndicator(row) {
-            const button = row.querySelector('.review-indicator');
-            const note = normalizeNote(row.dataset.catatan);
-            const statusKey = row.dataset.statusKey || 'draft';
-            const visible = hasReviewSignal(statusKey, note);
-
-            button.hidden = !visible;
-            button.classList.toggle('has-note', note !== '-');
-            button.classList.toggle('has-status', note === '-' && visible);
+        function fallbackCopyText(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            textarea.remove();
         }
 
         function escapeHtml(value) {
@@ -500,8 +635,12 @@
                 closeDetailModal();
             }
 
-            if (event.target === noteModal) {
-                closeNoteModal();
+            if (event.target === departmentNoteModal) {
+                closeDepartmentNoteModal();
+            }
+
+            if (event.target === headmasterNoteModal) {
+                closeHeadmasterNoteModal();
             }
         };
     </script>

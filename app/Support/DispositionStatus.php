@@ -104,14 +104,48 @@ class DispositionStatus
             return null;
         }
 
-        if (preg_match('~drive\.google\.com/file/d/([^/]+)~', $url, $matches)) {
-            return "https://drive.google.com/file/d/{$matches[1]}/preview";
+        $fileId = self::extractDriveFileId($url);
+
+        if ($fileId) {
+            return "https://drive.google.com/file/d/{$fileId}/preview";
         }
 
-        if (str_contains($url, 'drive.google.com') && preg_match('~[?&]id=([^&]+)~', $url, $matches)) {
-            return "https://drive.google.com/file/d/{$matches[1]}/preview";
+        if (str_contains($url, 'drive.google.com/drive/folders/')) {
+            return null;
         }
 
         return $url;
+    }
+
+    public static function downloadUrl(?string $url): ?string
+    {
+        if (!$url) {
+            return null;
+        }
+
+        $fileId = self::extractDriveFileId($url);
+
+        if ($fileId) {
+            return "https://drive.google.com/uc?export=download&id={$fileId}";
+        }
+
+        if (str_contains($url, 'drive.google.com/drive/folders/')) {
+            return null;
+        }
+
+        return $url;
+    }
+
+    private static function extractDriveFileId(string $url): ?string
+    {
+        if (preg_match('~drive\.google\.com/file/d/([^/]+)~', $url, $matches)) {
+            return $matches[1];
+        }
+
+        if (str_contains($url, 'drive.google.com') && preg_match('~[?&]id=([^&]+)~', $url, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 }

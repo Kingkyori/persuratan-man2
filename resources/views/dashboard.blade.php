@@ -10,7 +10,18 @@
 <body>
     @php
         $userName = session('user.name') ?? 'Administrator';
+        $userRole = session('user.role', 'admin');
+        $isAdmin = $userRole === 'admin';
+        $isHeadmaster = $userRole === 'kepala_sekolah';
+        $totalDocuments = ($stats['surat_masuk'] ?? 0) + ($stats['surat_keluar'] ?? 0) + ($stats['sppd'] ?? 0);
         $maxDistribution = max(array_merge(array_values($statusDistribution ?: ['Draft' => 1]), [1]));
+        $statusOverview = [
+            ['label' => 'Draft', 'value' => $stats['draft'] ?? 0],
+            ['label' => 'Menunggu', 'value' => $stats['pending'] ?? 0],
+            ['label' => 'Revisi', 'value' => $stats['revision'] ?? 0],
+            ['label' => 'Disetujui', 'value' => $stats['approved_letters'] ?? 0],
+            ['label' => 'Ditolak', 'value' => $stats['rejected_letters'] ?? 0],
+        ];
     @endphp
 
     <div class="main-container">
@@ -18,7 +29,7 @@
 
         <div class="content-wrapper">
             <div class="top-bar">
-                <div>
+                <div class="page-intro">
                     <p class="eyebrow">Ringkasan Persuratan</p>
                     <h1 class="top-title">Dashboard Monitoring Surat</h1>
                 </div>
@@ -26,7 +37,7 @@
                     <span class="user-avatar">{{ strtoupper(substr($userName, 0, 1)) }}</span>
                     <div>
                         <strong>{{ $userName }}</strong>
-                        <small>Pengelola sistem persuratan</small>
+                        <small>{{ $isHeadmaster ? 'Persetujuan dan disposisi surat' : 'Pengelola sistem persuratan' }}</small>
                     </div>
                 </div>
             </div>
@@ -35,62 +46,75 @@
                 <section class="hero-panel">
                     <div class="hero-copy">
                         <p class="eyebrow">Ikhtisar Hari Ini</p>
-                        <h2>Semua status surat dan disposisi terpantau dalam satu halaman.</h2>
+                        <h2>Pantau seluruh surat dan disposisi tanpa tampilan yang berlebihan.</h2>
                         <p>
-                            Saat ini ada <strong>{{ $stats['pending'] }}</strong> dokumen menunggu persetujuan,
-                            <strong>{{ $stats['revision'] }}</strong> dokumen perlu revisi, dan
-                            <strong>{{ $stats['reviewed'] }}</strong> dokumen sudah memiliki catatan atau perubahan status.
+                            Total ada <strong>{{ $totalDocuments }}</strong> dokumen aktif. Saat ini
+                            <strong>{{ $stats['pending'] }}</strong> menunggu persetujuan,
+                            <strong>{{ $stats['revision'] }}</strong> perlu revisi, dan
+                            <strong>{{ $stats['reviewed'] }}</strong> sudah memiliki catatan atau perubahan status.
                         </p>
                     </div>
-                    <div class="hero-actions">
-                        <a href="{{ route('surat-masuk') }}" class="hero-link primary-link">Buka Surat Masuk</a>
-                        <a href="{{ route('surat-keluar') }}" class="hero-link">Buka Surat Keluar</a>
-                        <a href="{{ route('sppd') }}" class="hero-link">Buka SPPD</a>
-                        <a href="{{ route('disposisi') }}" class="hero-link">Buka Disposisi</a>
+
+                    <div class="hero-side">
+                        <div class="hero-highlights">
+                            <article class="highlight-card">
+                                <span>Menunggu Persetujuan</span>
+                                <strong>{{ $stats['pending'] }}</strong>
+                            </article>
+                            <article class="highlight-card">
+                                <span>Perlu Revisi</span>
+                                <strong>{{ $stats['revision'] }}</strong>
+                            </article>
+                            <article class="highlight-card">
+                                <span>Sudah Ditinjau</span>
+                                <strong>{{ $stats['reviewed'] }}</strong>
+                            </article>
+                        </div>
+
+                        <div class="quick-actions">
+                            <a href="{{ route('manajemen-surat') }}" class="quick-link quick-link-primary">Manajemen Surat</a>
+                            @if($isAdmin)
+                                <a href="{{ route('surat-masuk') }}" class="quick-link">Surat Masuk</a>
+                                <a href="{{ route('surat-keluar') }}" class="quick-link">Surat Keluar</a>
+                                <a href="{{ route('sppd') }}" class="quick-link">SPPD</a>
+                            @endif
+                            @if($isHeadmaster)
+                                <a href="{{ route('disposisi') }}" class="quick-link">Disposisi</a>
+                            @endif
+                        </div>
                     </div>
                 </section>
 
                 <section class="stats-grid">
                     <article class="stat-card">
-                        <span class="stat-kicker">Arsip</span>
+                        <span class="stat-label">Surat Masuk</span>
                         <strong class="stat-value">{{ $stats['surat_masuk'] }}</strong>
-                        <span class="stat-title">Surat Masuk</span>
+                        <span class="stat-caption">Arsip surat yang diterima</span>
                     </article>
                     <article class="stat-card">
-                        <span class="stat-kicker">Arsip</span>
+                        <span class="stat-label">Surat Keluar</span>
                         <strong class="stat-value">{{ $stats['surat_keluar'] }}</strong>
-                        <span class="stat-title">Surat Keluar</span>
+                        <span class="stat-caption">Arsip surat yang dikirim</span>
                     </article>
                     <article class="stat-card">
-                        <span class="stat-kicker">Perjalanan Dinas</span>
+                        <span class="stat-label">SPPD</span>
                         <strong class="stat-value">{{ $stats['sppd'] }}</strong>
-                        <span class="stat-title">Total SPPD</span>
+                        <span class="stat-caption">Perjalanan dinas aktif</span>
                     </article>
-                    <article class="stat-card highlight">
-                        <span class="stat-kicker">Status Awal</span>
-                        <strong class="stat-value">{{ $stats['draft'] }}</strong>
-                        <span class="stat-title">Masih Draft</span>
-                    </article>
-                    <article class="stat-card">
-                        <span class="stat-kicker">Antrian</span>
-                        <strong class="stat-value">{{ $stats['pending'] }}</strong>
-                        <span class="stat-title">Menunggu Persetujuan</span>
-                    </article>
-                    <article class="stat-card">
-                        <span class="stat-kicker">Perlu Tindak Lanjut</span>
-                        <strong class="stat-value">{{ $stats['revision'] }}</strong>
-                        <span class="stat-title">Perlu Revisi</span>
-                    </article>
-                    <article class="stat-card approved">
-                        <span class="stat-kicker">Surat</span>
+                    <article class="stat-card stat-card-accent">
+                        <span class="stat-label">Surat Disetujui</span>
                         <strong class="stat-value">{{ $stats['approved_letters'] }}</strong>
-                        <span class="stat-title">Surat Disetujui</span>
+                        <span class="stat-caption">Dokumen yang sudah lolos persetujuan</span>
                     </article>
-                    <article class="stat-card rejected">
-                        <span class="stat-kicker">Surat</span>
-                        <strong class="stat-value">{{ $stats['rejected_letters'] }}</strong>
-                        <span class="stat-title">Surat Ditolak</span>
-                    </article>
+                </section>
+
+                <section class="status-strip">
+                    @foreach($statusOverview as $item)
+                        <article class="status-tile">
+                            <span>{{ $item['label'] }}</span>
+                            <strong>{{ $item['value'] }}</strong>
+                        </article>
+                    @endforeach
                 </section>
 
                 <section class="dashboard-grid">
@@ -128,14 +152,15 @@
                         <div class="activity-list">
                             @forelse($recentActivities as $activity)
                                 <div class="activity-item">
-                                    <div class="activity-mark">{{ $activity['icon'] }}</div>
                                     <div class="activity-copy">
-                                        <strong>{{ $activity['title'] }}</strong>
+                                        <div class="activity-head">
+                                            <strong>{{ $activity['title'] }}</strong>
+                                            <small>{{ $activity['time_label'] }}</small>
+                                        </div>
                                         <p>{{ \Illuminate\Support\Str::limit($activity['description'], 90) }}</p>
                                         <div class="activity-meta">
                                             <span class="activity-type">{{ $activity['type'] }}</span>
                                             <span class="activity-badge">{{ $activity['badge'] }}</span>
-                                            <small>{{ $activity['time_label'] }}</small>
                                         </div>
                                     </div>
                                 </div>

@@ -21,6 +21,7 @@ class Sppd extends Model
         'status',
         'notes',
         'google_drive_link',
+        'local_file_path',
         'file_name',
         'user_id',
     ];

@@ -16,11 +16,16 @@ class SuratMasuk extends Model
         'reception_date',
         'letter_number',
         'subject',
+        'department_destination',
         'reference_number',
         'status',
+        'department_status',
         'notes',
+        'department_notes',
         'google_drive_link',
+        'local_file_path',
         'file_name',
+        'share_token',
         'user_id'
     ];
 
