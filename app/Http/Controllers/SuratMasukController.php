@@ -191,15 +191,16 @@ class SuratMasukController extends Controller
     public function showDepartmentPortal(string $token)
     {
         $surat = SuratMasuk::where('share_token', $token)->firstOrFail();
+        $hasFile = filled($surat->google_drive_link) || filled($surat->local_file_path);
 
         return view('surat-masuk-share', [
             'surat' => $surat,
             'statusMeta' => DispositionStatus::meta($surat->status),
             'departmentStatusMeta' => DepartmentReceiptStatus::meta($surat->department_status),
             'departmentStatusConfig' => DepartmentReceiptStatus::options(),
-            'previewUrl' => route('surat-masuk.share.preview', $surat->share_token),
-            'openUrl' => route('surat-masuk.share.file', $surat->share_token),
-            'downloadUrl' => route('surat-masuk.share.download', $surat->share_token),
+            'previewUrl' => $hasFile ? route('surat-masuk.share.preview', $surat->share_token) : null,
+            'openUrl' => $hasFile ? route('surat-masuk.share.file', $surat->share_token) : null,
+            'downloadUrl' => $hasFile ? route('surat-masuk.share.download', $surat->share_token) : null,
         ]);
     }
 

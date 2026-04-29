@@ -13,12 +13,27 @@ return new class extends Migration
             $table->string('employee_name')->nullable()->after('employee_id');
         });
 
-        DB::table('sppd')
-            ->leftJoin('users', 'sppd.employee_id', '=', 'users.id')
-            ->whereNull('sppd.employee_name')
-            ->update([
-                'sppd.employee_name' => DB::raw('COALESCE(users.name, "-")'),
-            ]);
+        if (DB::getDriverName() === 'sqlite') {
+            DB::table('sppd')
+                ->leftJoin('users', 'sppd.employee_id', '=', 'users.id')
+                ->select('sppd.id', 'users.name')
+                ->whereNull('sppd.employee_name')
+                ->get()
+                ->each(function (object $row) {
+                    DB::table('sppd')
+                        ->where('id', $row->id)
+                        ->update([
+                            'employee_name' => $row->name ?: '-',
+                        ]);
+                });
+        } else {
+            DB::table('sppd')
+                ->leftJoin('users', 'sppd.employee_id', '=', 'users.id')
+                ->whereNull('sppd.employee_name')
+                ->update([
+                    'sppd.employee_name' => DB::raw('COALESCE(users.name, "-")'),
+                ]);
+        }
 
         Schema::table('sppd', function (Blueprint $table) {
             $table->dropForeign(['employee_id']);

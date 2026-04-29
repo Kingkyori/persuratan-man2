@@ -148,16 +148,18 @@ class ManajemenSuratController extends Controller
             ->get()
             ->map(function (Sppd $item) {
                 $headmasterStatus = DispositionStatus::normalize($item->status);
+                $typeLabel = $item->entry_type === 'generated_assignment' ? 'SPPD Penugasan' : 'SPPD';
+                $documentNumber = $item->document_number ?: $item->purpose;
 
                 return [
                     'id' => $item->id,
                     'key' => "sppd-{$item->id}",
                     'category' => 'sppd',
-                    'type_label' => 'SPPD',
+                    'type_label' => $typeLabel,
                     'primary_name' => $item->employee_name ?: 'Pegawai belum diisi',
                     'secondary_name' => $item->purpose,
                     'destination' => $item->destination,
-                    'number' => $item->purpose,
+                    'number' => $documentNumber,
                     'date_label' => optional($item->departure_date)->format('d M Y') ?? '-',
                     'date_sort' => optional($item->departure_date)->format('Y-m-d') ?? '',
                     'updated_label' => optional($item->updated_at)?->diffForHumans() ?? '-',
@@ -182,9 +184,11 @@ class ManajemenSuratController extends Controller
                     'share_url' => null,
                     'search' => strtolower(implode(' ', [
                         'sppd',
+                        $item->entry_type,
                         $item->employee_name,
                         $item->destination,
                         $item->purpose,
+                        $item->document_number,
                         $item->notes,
                     ])),
                 ];

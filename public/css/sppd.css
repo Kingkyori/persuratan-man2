@@ -111,6 +111,18 @@ body {
     white-space: nowrap;
 }
 
+.header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-toolbar {
+    min-width: 148px;
+    text-align: center;
+}
+
 .btn-primary:hover,
 .btn-success:hover {
     transform: translateY(-1px);
@@ -348,6 +360,10 @@ body {
     padding: 24px;
 }
 
+.modal-content-wide {
+    max-width: 940px;
+}
+
 .form-banner {
     margin-bottom: 20px;
     padding: 14px 16px;
@@ -378,6 +394,22 @@ body {
 
 .form-group:last-of-type {
     margin-bottom: 0;
+}
+
+.form-section-title {
+    margin-bottom: 14px;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #1f2937;
+}
+
+.form-section-title-inline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
 }
 
 .form-group label {
@@ -414,6 +446,53 @@ body {
 textarea.form-control {
     resize: vertical;
     min-height: 96px;
+}
+
+.assignee-list {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 22px;
+}
+
+.assignee-card {
+    padding: 18px;
+    border: 1px solid #dbe4dd;
+    border-radius: 12px;
+    background: #fbfdfb;
+}
+
+.assignee-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.assignee-card-header strong {
+    font-size: 14px;
+    color: #14221a;
+}
+
+.btn-inline {
+    padding: 10px 14px;
+}
+
+.btn-link-danger {
+    border: none;
+    background: transparent;
+    color: #b42318;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-link-danger:hover {
+    color: #8f1b13;
+}
+
+.form-row-tight {
+    margin-bottom: 0;
 }
 
 .file-upload {
@@ -571,9 +650,17 @@ textarea.form-control {
         align-items: stretch;
     }
 
+    .header-actions {
+        justify-content: stretch;
+    }
+
     .btn-primary {
         width: 100%;
         justify-content: center;
+    }
+
+    .btn-toolbar {
+        width: 100%;
     }
 
     .stats-strip {
@@ -601,6 +688,15 @@ textarea.form-control {
 
     .btn-secondary,
     .btn-success {
+        width: 100%;
+    }
+
+    .form-section-title-inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn-inline {
         width: 100%;
     }
 }

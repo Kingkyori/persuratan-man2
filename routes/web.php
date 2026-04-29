@@ -51,7 +51,9 @@ Route::middleware('web')->group(function () {
 
             Route::get('/sppd', [SppdController::class, 'index'])->name('sppd');
             Route::post('/sppd/store', [SppdController::class, 'store'])->name('sppd.store');
+            Route::post('/sppd/store-generated', [SppdController::class, 'storeGenerated'])->name('sppd.storeGenerated');
             Route::post('/sppd/{id}/status', [SppdController::class, 'updateStatus'])->name('sppd.updateStatus');
+            Route::get('/sppd/{id}/docx', [SppdController::class, 'downloadDocx'])->name('sppd.downloadDocx');
             Route::delete('/sppd/{id}', [SppdController::class, 'destroy'])->name('sppd.destroy');
         });
 

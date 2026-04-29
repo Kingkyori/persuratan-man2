@@ -31,11 +31,11 @@
                         type="text"
                         class="search-input"
                         id="searchInput"
-                        placeholder="Cari pegawai, tujuan, atau kepentingan dinas..."
+                        placeholder="Cari pegawai, tujuan, nomor surat, atau kepentingan dinas..."
                     >
                 </div>
                 <div class="top-bar-note">
-                    Arsip SPPD tersimpan ke database, dan catatan hasil disposisi dapat dilihat dari tombol `!` di samping status.
+                    Arsip SPPD manual dan surat penugasan otomatis tersimpan di database. Catatan hasil disposisi bisa dilihat dari tombol `!` di samping status.
                 </div>
             </div>
 
@@ -43,11 +43,14 @@
                 <div class="header-content">
                     <h1>SPPD</h1>
                     <p>
-                        Kelola Surat Perintah Perjalanan Dinas dalam satu daftar yang rapi, lengkap dengan status,
-                        hasil review, dan tautan arsip file.
+                        Kelola upload lampiran SPPD dan buat surat penugasan otomatis dalam satu daftar arsip yang rapi,
+                        lengkap dengan status, hasil review, PDF, dan DOCX.
                     </p>
                 </div>
-                <button class="btn-primary" id="btnOpenModal" type="button">+ Tambah SPPD</button>
+                <div class="header-actions">
+                    <button class="btn-secondary btn-toolbar" id="btnOpenGeneratedModal" type="button">+ Buat SPPD</button>
+                    <button class="btn-primary btn-toolbar" id="btnOpenModal" type="button">+ Tambah SPPD</button>
+                </div>
             </div>
 
             <section class="stats-strip">
@@ -74,7 +77,8 @@
                     <div>
                         <h2>Daftar Arsip SPPD</h2>
                         <p class="section-description">
-                            Fokus data SPPD: pegawai, tujuan perjalanan, tanggal berangkat, durasi, kepentingan dinas, file, status, dan catatan review.
+                            Arsip ini menampung upload lampiran SPPD dan surat penugasan hasil generate template:
+                            pegawai, tujuan, tanggal, durasi, nomor surat, file, status, dan catatan review.
                         </p>
                     </div>
                     <div class="workflow-note">
@@ -102,10 +106,12 @@
                                     $statusKey = \App\Support\DispositionStatus::normalize($item->status);
                                     $statusMeta = $statusConfig[$statusKey] ?? $statusConfig['draft'];
                                     $hasReviewSignal = filled($item->notes) || $statusKey !== 'draft';
+                                    $docxUrl = $item->generated_docx_path ? route('sppd.downloadDocx', $item->id) : '';
+                                    $recordTypeLabel = $item->entry_type === 'generated_assignment' ? 'Surat Penugasan' : 'Upload Lampiran';
                                 @endphp
                                 <tr
                                     data-id="{{ $item->id }}"
-                                    data-search="{{ strtolower(($item->employee_name ?? '') . ' ' . $item->destination . ' ' . $item->purpose) }}"
+                                    data-search="{{ strtolower(($item->employee_name ?? '') . ' ' . $item->destination . ' ' . $item->purpose . ' ' . ($item->document_number ?? '')) }}"
                                     data-tanggal="{{ optional($item->departure_date)->format('d M Y') }}"
                                     data-pegawai="{{ $item->employee_name ?? '-' }}"
                                     data-tujuan="{{ $item->destination }}"
@@ -115,7 +121,10 @@
                                     data-status-key="{{ $statusKey }}"
                                     data-file="{{ $item->file_name }}"
                                     data-link="{{ route('archive.open', ['type' => 'sppd', 'id' => $item->id]) }}"
+                                    data-docx-link="{{ $docxUrl }}"
                                     data-catatan="{{ $item->notes ?: '-' }}"
+                                    data-record-type="{{ $recordTypeLabel }}"
+                                    data-document-number="{{ $item->document_number ?: '-' }}"
                                 >
                                     <td>{{ optional($item->departure_date)->format('d M Y') }}</td>
                                     <td>{{ $item->employee_name ?? '-' }}</td>
@@ -137,6 +146,9 @@
                                     </td>
                                     <td class="action-cell">
                                         <a href="{{ route('archive.open', ['type' => 'sppd', 'id' => $item->id]) }}" target="_blank" class="btn-small" rel="noopener">File</a>
+                                        @if($docxUrl)
+                                            <a href="{{ $docxUrl }}" class="btn-small" rel="noopener">DOCX</a>
+                                        @endif
                                         <button class="btn-small" type="button" onclick="viewDetail('{{ $item->id }}')">Detail</button>
                                         <button class="btn-small btn-danger" type="button" onclick="deleteSppd('{{ $item->id }}')">Hapus</button>
                                     </td>
@@ -152,7 +164,7 @@
 
                 <div class="table-footer">
                     <span id="resultCount">{{ $records->count() }} data tampil</span>
-                    <span>Setiap input SPPD yang berhasil disimpan akan muncul di daftar arsip ini.</span>
+                    <span>Setiap input atau hasil generate SPPD yang berhasil disimpan akan muncul di daftar arsip ini.</span>
                 </div>
             </section>
         </main>
@@ -242,6 +254,143 @@
         </div>
     </div>
 
+    <div class="modal" id="modalGenerate">
+        <div class="modal-content modal-content-wide">
+            <div class="modal-header">
+                <h2>Buat Surat Penugasan</h2>
+                <button class="modal-close" id="btnCloseGeneratedModal" type="button">&times;</button>
+            </div>
+
+            <form id="formGeneratedSppd" class="register-form">
+                <div class="form-banner">
+                    Kop surat, kalimat pembuka, dasar poin 1, dan format penutup otomatis mengikuti template MAN 2.
+                    Pengguna cukup mengisi inti surat seperti nomor, petugas, agenda, waktu, dan tempat tugas.
+                    Bagian dasar surat poin 2 di bawah ini opsional, jadi kalau kosong tidak akan ditampilkan di surat.
+                </div>
+
+                <div class="form-section-title">Informasi Surat</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_document_number">Nomor Surat <span class="required">*</span></label>
+                        <input type="text" id="generated_document_number" name="document_number" class="form-control" required placeholder="Contoh: 072/Ma.11.31.02/KP.01.1/04/2026">
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_document_date">Tanggal Surat <span class="required">*</span></label>
+                        <input type="date" id="generated_document_date" name="document_date" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_duration_days">Durasi (hari) <span class="required">*</span></label>
+                        <input type="number" id="generated_duration_days" name="duration_days" class="form-control" min="1" max="365" required value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_city">Kota Penandatanganan <span class="required">*</span></label>
+                        <input type="text" id="generated_city" name="city" class="form-control" required value="Surakarta">
+                    </div>
+                </div>
+
+                <div class="form-section-title">Dasar Surat (Poin 2 - Opsional)</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_reference_from">Surat dari</label>
+                        <input type="text" id="generated_reference_from" name="reference_from" class="form-control" placeholder="Contoh: Kankemenag Surakarta">
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_reference_number">Nomor Surat</label>
+                        <input type="text" id="generated_reference_number" name="reference_number" class="form-control" placeholder="Contoh: 123/ABC/2026">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_reference_date">Tanggal Surat Dasar</label>
+                        <input type="date" id="generated_reference_date" name="reference_date" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_reference_subject">Perihal</label>
+                        <input type="text" id="generated_reference_subject" name="reference_subject" class="form-control" placeholder="Contoh: Undangan koordinasi">
+                    </div>
+                </div>
+
+                <div class="form-section-title form-section-title-inline">
+                    <span>Petugas yang Ditugaskan</span>
+                    <button type="button" class="btn-secondary btn-inline" id="btnAddAssignee">+ Tambah Petugas</button>
+                </div>
+                <div class="assignee-list" id="assigneeList"></div>
+
+                <div class="form-section-title">Agenda Penugasan</div>
+                <div class="form-row">
+                    <div class="form-group form-group-full">
+                        <label for="generated_assignment_agenda">Agenda / Tugas <span class="required">*</span></label>
+                        <textarea id="generated_assignment_agenda" name="assignment_agenda" class="form-control" rows="3" required placeholder="Contoh: Konsultasi rekonstruksi pembangunan cagar budaya MAN 2 Surakarta"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_activity_date">Tanggal Kegiatan <span class="required">*</span></label>
+                        <input type="date" id="generated_activity_date" name="activity_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_activity_time">Waktu Mulai <span class="required">*</span></label>
+                        <input type="time" id="generated_activity_time" name="activity_time" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group form-group-full">
+                        <label for="generated_activity_location">Tempat Kegiatan <span class="required">*</span></label>
+                        <textarea id="generated_activity_location" name="activity_location" class="form-control" rows="2" required placeholder="Contoh: Kantor Dinas PUPR Surakarta, Jl. Blimbing No 10, Kerten, Laweyan, Surakarta"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-section-title">Penandatangan dan Arsip</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_signer_title">Jabatan Penandatangan <span class="required">*</span></label>
+                        <input type="text" id="generated_signer_title" name="signer_title" class="form-control" required value="Plt. Kepala">
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_signer_name">Nama Penandatangan <span class="required">*</span></label>
+                        <input type="text" id="generated_signer_name" name="signer_name" class="form-control" required value="Sita Kurniasari">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_signer_nip">NIP Penandatangan</label>
+                        <input type="text" id="generated_signer_nip" name="signer_nip" class="form-control" placeholder="Opsional">
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_status">Status <span class="required">*</span></label>
+                        <select id="generated_status" name="status" class="form-control" required>
+                            @foreach($statusConfig as $statusKey => $statusMeta)
+                                <option value="{{ $statusKey }}">{{ $statusMeta['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group form-group-full">
+                        <label for="generated_notes">Catatan Arsip</label>
+                        <textarea id="generated_notes" name="notes" class="form-control" rows="2" placeholder="Tambahkan catatan singkat bila perlu"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeGeneratedModal()">Batal</button>
+                    <button type="submit" class="btn-success" id="btnGeneratedSubmit">
+                        <span id="generatedSubmitText">Simpan dan Buat Dokumen</span>
+                        <span id="generatedSubmitLoader" style="display: none;">Membuat...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="modal" id="modalDetail">
         <div class="modal-content detail-modal-content">
             <div class="modal-header">
@@ -274,9 +423,11 @@
     <script>
         const statusConfig = @json($statusConfig);
         const modal = document.getElementById('modalRegister');
+        const generatedModal = document.getElementById('modalGenerate');
         const detailModal = document.getElementById('modalDetail');
         const noteModal = document.getElementById('modalNote');
         const form = document.getElementById('formSppd');
+        const generatedForm = document.getElementById('formGeneratedSppd');
         const fileInput = document.getElementById('attachmentFile');
         const fileUploadArea = document.getElementById('fileUploadArea');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
@@ -286,12 +437,22 @@
         const submitButton = document.getElementById('btnSubmit');
         const submitText = document.getElementById('submitText');
         const submitLoader = document.getElementById('submitLoader');
+        const generatedSubmitButton = document.getElementById('btnGeneratedSubmit');
+        const generatedSubmitText = document.getElementById('generatedSubmitText');
+        const generatedSubmitLoader = document.getElementById('generatedSubmitLoader');
+        const assigneeList = document.getElementById('assigneeList');
 
         document.getElementById('btnOpenModal').addEventListener('click', () => {
             modal.style.display = 'flex';
         });
 
+        document.getElementById('btnOpenGeneratedModal').addEventListener('click', () => {
+            generatedModal.style.display = 'flex';
+        });
+
         document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+        document.getElementById('btnCloseGeneratedModal').addEventListener('click', closeGeneratedModal);
+        document.getElementById('btnAddAssignee').addEventListener('click', () => addAssigneeBlock());
 
         if (fileUploadArea) {
             fileUploadArea.addEventListener('click', () => fileInput.click());
@@ -319,7 +480,7 @@
             const formData = new FormData(form);
 
             try {
-                setSubmittingState(true);
+                setSubmittingState(submitButton, submitText, submitLoader, true);
 
                 const { response, result } = await RequestProgress.requestJson({
                     url: '{{ route("sppd.store") }}',
@@ -350,7 +511,49 @@
             } catch (error) {
                 alert(error.message || 'Terjadi kesalahan saat menyimpan data SPPD.');
             } finally {
-                setSubmittingState(false);
+                setSubmittingState(submitButton, submitText, submitLoader, false);
+            }
+        });
+
+        generatedForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            if (assigneeList.querySelectorAll('.assignee-card').length === 0) {
+                alert('Tambahkan minimal satu petugas terlebih dahulu.');
+                return;
+            }
+
+            const formData = new FormData(generatedForm);
+
+            try {
+                setSubmittingState(generatedSubmitButton, generatedSubmitText, generatedSubmitLoader, true);
+
+                const { response, result } = await RequestProgress.requestJson({
+                    url: '{{ route("sppd.storeGenerated") }}',
+                    method: 'POST',
+                    data: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    title: 'Membuat surat penugasan',
+                    initialMessage: 'Menyiapkan data surat penugasan...',
+                    processingMessage: 'Membuat file PDF dan DOCX lalu menyimpan arsip...',
+                    successMessage: 'Surat penugasan berhasil dibuat.'
+                });
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Gagal membuat surat penugasan.');
+                }
+
+                prependRow(result.data);
+                closeGeneratedModal();
+                updateVisibleCount();
+                RequestProgress.showNotice(result.message, 'success');
+            } catch (error) {
+                alert(error.message || 'Terjadi kesalahan saat membuat surat penugasan.');
+            } finally {
+                setSubmittingState(generatedSubmitButton, generatedSubmitText, generatedSubmitLoader, false);
             }
         });
 
@@ -372,7 +575,7 @@
             const row = document.createElement('tr');
 
             row.dataset.id = data.id;
-            row.dataset.search = `${data.pegawai} ${data.tujuan} ${data.kepentingan}`.toLowerCase();
+            row.dataset.search = `${data.pegawai} ${data.tujuan} ${data.kepentingan} ${data.document_number || ''}`.toLowerCase();
             row.dataset.tanggal = data.tanggal;
             row.dataset.pegawai = data.pegawai;
             row.dataset.tujuan = data.tujuan;
@@ -382,9 +585,15 @@
             row.dataset.statusKey = data.status || 'draft';
             row.dataset.file = data.file;
             row.dataset.link = data.google_drive_link || '';
+            row.dataset.docxLink = data.docx_download_url || '';
             row.dataset.catatan = data.catatan || '-';
+            row.dataset.recordType = data.record_type || 'Upload Lampiran';
+            row.dataset.documentNumber = data.document_number || '-';
 
             const driveButton = `<a href="${escapeHtml(data.google_drive_link)}" target="_blank" class="btn-small" rel="noopener">File</a>`;
+            const docxButton = data.docx_download_url
+                ? `<a href="${escapeHtml(data.docx_download_url)}" class="btn-small" rel="noopener">DOCX</a>`
+                : '';
 
             row.innerHTML = `
                 <td>${escapeHtml(data.tanggal)}</td>
@@ -399,7 +608,7 @@
                         ${renderReviewButton(data.id, data.status, data.catatan)}
                     </div>
                 </td>
-                <td class="action-cell">${driveButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button><button class="btn-small btn-danger" type="button" onclick="deleteSppd('${data.id}')">Hapus</button></td>
+                <td class="action-cell">${driveButton}${docxButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button><button class="btn-small btn-danger" type="button" onclick="deleteSppd('${data.id}')">Hapus</button></td>
             `;
 
             tableBody.prepend(row);
@@ -452,7 +661,17 @@
                 ? `<p><strong>File Arsip:</strong> <a href="${escapeHtml(row.dataset.link)}" target="_blank" rel="noopener">Buka file</a></p>`
                 : '';
 
+            const docxLink = row.dataset.docxLink
+                ? `<p><strong>File DOCX:</strong> <a href="${escapeHtml(row.dataset.docxLink)}" rel="noopener">Unduh DOCX</a></p>`
+                : '';
+
+            const documentNumber = row.dataset.documentNumber && row.dataset.documentNumber !== '-'
+                ? `<p><strong>Nomor Surat:</strong> ${escapeHtml(row.dataset.documentNumber)}</p>`
+                : '';
+
             document.getElementById('detailContent').innerHTML = `
+                <p><strong>Jenis Arsip:</strong> ${escapeHtml(row.dataset.recordType || 'SPPD')}</p>
+                ${documentNumber}
                 <p><strong>Tanggal Berangkat:</strong> ${escapeHtml(row.dataset.tanggal)}</p>
                 <p><strong>Pegawai:</strong> ${escapeHtml(row.dataset.pegawai)}</p>
                 <p><strong>Tujuan:</strong> ${escapeHtml(row.dataset.tujuan)}</p>
@@ -462,6 +681,7 @@
                 <p><strong>File:</strong> ${escapeHtml(row.dataset.file)}</p>
                 <p><strong>Catatan:</strong> ${escapeHtml(normalizeNote(row.dataset.catatan))}</p>
                 ${driveLink}
+                ${docxLink}
             `;
 
             detailModal.style.display = 'flex';
@@ -484,11 +704,82 @@
             noteModal.style.display = 'flex';
         }
 
+        function addAssigneeBlock(values = {}) {
+            const card = document.createElement('div');
+            card.className = 'assignee-card';
+            card.innerHTML = `
+                <div class="assignee-card-header">
+                    <strong>Petugas</strong>
+                    <button type="button" class="btn-link-danger assignee-remove">Hapus</button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nama <span class="required">*</span></label>
+                        <input type="text" class="form-control assignee-name" required value="${escapeHtmlAttr(values.name || '')}" placeholder="Nama petugas">
+                    </div>
+                    <div class="form-group">
+                        <label>NIP</label>
+                        <input type="text" class="form-control assignee-nip" value="${escapeHtmlAttr(values.nip || '')}" placeholder="NIP">
+                    </div>
+                </div>
+                <div class="form-row form-row-tight">
+                    <div class="form-group">
+                        <label>Pangkat</label>
+                        <input type="text" class="form-control assignee-rank" value="${escapeHtmlAttr(values.rank || '')}" placeholder="Contoh: Penata Tk.I, III/d">
+                    </div>
+                    <div class="form-group">
+                        <label>Jabatan</label>
+                        <input type="text" class="form-control assignee-position" value="${escapeHtmlAttr(values.position || '')}" placeholder="Contoh: Bendahara DIPA">
+                    </div>
+                </div>
+            `;
+
+            card.querySelector('.assignee-remove').addEventListener('click', () => {
+                card.remove();
+                if (assigneeList.querySelectorAll('.assignee-card').length === 0) {
+                    addAssigneeBlock();
+                } else {
+                    reindexAssigneeBlocks();
+                }
+            });
+
+            assigneeList.appendChild(card);
+            reindexAssigneeBlocks();
+        }
+
+        function reindexAssigneeBlocks() {
+            const cards = assigneeList.querySelectorAll('.assignee-card');
+
+            cards.forEach((card, index) => {
+                const heading = card.querySelector('.assignee-card-header strong');
+                const removeButton = card.querySelector('.assignee-remove');
+
+                heading.textContent = `Petugas ${index + 1}`;
+                removeButton.style.visibility = cards.length === 1 ? 'hidden' : 'visible';
+
+                const nameInput = card.querySelector('.assignee-name');
+                const nipInput = card.querySelector('.assignee-nip');
+                const rankInput = card.querySelector('.assignee-rank');
+                const positionInput = card.querySelector('.assignee-position');
+
+                nameInput.name = `assignees[${index}][name]`;
+                nipInput.name = `assignees[${index}][nip]`;
+                rankInput.name = `assignees[${index}][rank]`;
+                positionInput.name = `assignees[${index}][position]`;
+            });
+        }
+
         function closeModal() {
             modal.style.display = 'none';
             form.reset();
             resetFileUpload();
-            setSubmittingState(false);
+            setSubmittingState(submitButton, submitText, submitLoader, false);
+        }
+
+        function closeGeneratedModal() {
+            generatedModal.style.display = 'none';
+            resetGeneratedForm();
+            setSubmittingState(generatedSubmitButton, generatedSubmitText, generatedSubmitLoader, false);
         }
 
         function closeDetailModal() {
@@ -504,14 +795,24 @@
             fileUploadArea.classList.remove('has-file');
         }
 
-        function setSubmittingState(isSubmitting) {
-            if (!submitButton) {
+        function resetGeneratedForm() {
+            generatedForm.reset();
+            assigneeList.innerHTML = '';
+            addAssigneeBlock();
+            document.getElementById('generated_duration_days').value = 1;
+            document.getElementById('generated_city').value = 'Surakarta';
+            document.getElementById('generated_signer_title').value = 'Plt. Kepala';
+            document.getElementById('generated_signer_name').value = 'Sita Kurniasari';
+        }
+
+        function setSubmittingState(button, textElement, loaderElement, isSubmitting) {
+            if (!button) {
                 return;
             }
 
-            submitButton.disabled = isSubmitting;
-            submitText.style.display = isSubmitting ? 'none' : 'inline';
-            submitLoader.style.display = isSubmitting ? 'inline' : 'none';
+            button.disabled = isSubmitting;
+            textElement.style.display = isSubmitting ? 'none' : 'inline';
+            loaderElement.style.display = isSubmitting ? 'inline' : 'none';
         }
 
         function removeEmptyState() {
@@ -572,9 +873,17 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function escapeHtmlAttr(value) {
+            return escapeHtml(value).replace(/`/g, '&#96;');
+        }
+
         window.addEventListener('click', (event) => {
             if (event.target === modal) {
                 closeModal();
+            }
+
+            if (event.target === generatedModal) {
+                closeGeneratedModal();
             }
 
             if (event.target === detailModal) {
@@ -585,6 +894,8 @@
                 closeNoteModal();
             }
         });
+
+        resetGeneratedForm();
     </script>
 </body>
 </html>
