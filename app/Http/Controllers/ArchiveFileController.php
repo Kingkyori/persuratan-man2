@@ -49,6 +49,21 @@ class ArchiveFileController extends Controller
         return $this->serveRecordFile($this->resolveSharedIncomingRecord($token), 'download');
     }
 
+    public function shareOutgoingOpen(string $token): Response|RedirectResponse
+    {
+        return $this->serveRecordFile($this->resolveSharedOutgoingRecord($token), 'open');
+    }
+
+    public function shareOutgoingPreview(string $token): Response|RedirectResponse
+    {
+        return $this->serveRecordFile($this->resolveSharedOutgoingRecord($token), 'preview');
+    }
+
+    public function shareOutgoingDownload(string $token): Response|RedirectResponse
+    {
+        return $this->serveRecordFile($this->resolveSharedOutgoingRecord($token), 'download');
+    }
+
     private function serveRecordFile(Model $record, string $mode): Response|RedirectResponse
     {
         $driveUrl = $this->archiveFileService->resolveDriveFileUrl(
@@ -105,6 +120,11 @@ class ArchiveFileController extends Controller
     private function resolveSharedIncomingRecord(string $token): SuratMasuk
     {
         return SuratMasuk::where('share_token', $token)->firstOrFail();
+    }
+
+    private function resolveSharedOutgoingRecord(string $token): SuratKeluar
+    {
+        return SuratKeluar::where('share_token', $token)->firstOrFail();
     }
 
     private function previewUnavailableMarkup(): string

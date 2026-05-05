@@ -94,6 +94,7 @@ body {
 .btn-secondary,
 .btn-success,
 .btn-small,
+.icon-button,
 .review-indicator {
     border: none;
     border-radius: 8px;
@@ -102,6 +103,17 @@ body {
     text-transform: none;
     letter-spacing: normal;
     transition: all 0.2s ease;
+}
+
+.header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-toolbar {
+    min-width: 152px;
 }
 
 .btn-primary {
@@ -301,6 +313,28 @@ body {
     color: #166534;
 }
 
+.icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #eef2f7;
+    color: #475569;
+}
+
+.share-button {
+    background: #edf5ef;
+    color: #1b5e20;
+}
+
+.share-button svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
 .btn-small {
     padding: 8px 12px;
     background: #eef2f7;
@@ -366,10 +400,67 @@ body {
     margin-bottom: 20px;
 }
 
+.form-group-full {
+    grid-column: 1 / -1;
+}
+
 .form-group {
     display: flex;
     flex-direction: column;
     margin-bottom: 20px;
+}
+
+.modal-content-wide {
+    max-width: 940px;
+}
+
+.modal-subtitle {
+    margin-top: 6px;
+    color: #6c7c73;
+    font-size: 13px;
+}
+
+.form-section-title {
+    margin: 4px 0 14px;
+    color: #173826;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.letter-number-preview,
+.generated-letter-summary {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 20px;
+    padding: 16px;
+    border: 1px solid #dce7de;
+    border-radius: 14px;
+    background: #f8fbf8;
+}
+
+.generated-letter-summary {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+}
+
+.letter-number-preview span,
+.generated-letter-summary span {
+    display: block;
+    margin-bottom: 6px;
+    color: #6b7b72;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.letter-number-preview strong,
+.generated-letter-summary strong {
+    color: #173826;
+    font-size: 15px;
+    line-height: 1.6;
+    word-break: break-word;
 }
 
 .form-group:last-of-type {
@@ -572,6 +663,14 @@ textarea.form-control {
         justify-content: center;
     }
 
+    .header-actions {
+        width: 100%;
+    }
+
+    .btn-toolbar {
+        width: 100%;
+    }
+
     .stats-strip {
         grid-template-columns: repeat(2, 1fr);
         padding: 20px;
@@ -589,6 +688,10 @@ textarea.form-control {
     .form-row {
         grid-template-columns: 1fr;
         gap: 0;
+    }
+
+    .generated-letter-summary {
+        grid-template-columns: 1fr;
     }
 
     .form-actions {

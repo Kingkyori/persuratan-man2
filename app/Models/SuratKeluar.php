@@ -13,18 +13,25 @@ class SuratKeluar extends Model
 
     protected $fillable = [
         'destination',
+        'entry_type',
+        'document_type',
         'letter_date',
         'letter_number',
         'subject',
         'status',
         'notes',
+        'generated_payload',
         'google_drive_link',
         'local_file_path',
+        'generated_docx_path',
+        'generated_docx_name',
         'file_name',
+        'share_token',
         'user_id',
     ];
 
     protected $casts = [
         'letter_date' => 'datetime',
+        'generated_payload' => 'array',
     ];
 }

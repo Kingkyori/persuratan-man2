@@ -11,13 +11,12 @@
 </head>
 <body>
     @php
-        $statusConfig = \App\Support\DispositionStatus::options();
         $suratKeluar = collect($surat_keluar ?? []);
         $outgoingStats = [
             'total' => $suratKeluar->count(),
-            'draft' => $suratKeluar->filter(fn ($item) => \App\Support\DispositionStatus::normalize($item->status) === 'draft')->count(),
-            'pending' => $suratKeluar->filter(fn ($item) => \App\Support\DispositionStatus::normalize($item->status) === 'pending_approval')->count(),
-            'approved' => $suratKeluar->filter(fn ($item) => \App\Support\DispositionStatus::normalize($item->status) === 'approved')->count(),
+            'generated' => $suratKeluar->where('entry_type', 'generated_letter')->count(),
+            'upload' => $suratKeluar->filter(fn ($item) => ($item->entry_type ?: 'upload') === 'upload')->count(),
+            'shared' => $suratKeluar->filter(fn ($item) => filled($item->share_token))->count(),
         ];
     @endphp
 
@@ -35,7 +34,7 @@
                     >
                 </div>
                 <div class="top-bar-note">
-                    Arsip surat keluar tersimpan di database, dan catatan disposisi bisa dilihat dari tombol `!` di samping status.
+                    Arsip surat keluar tersimpan di database. Tombol share menyalin tautan publik untuk penerima surat.
                 </div>
             </div>
 
@@ -43,11 +42,14 @@
                 <div class="header-content">
                     <h1>Surat Keluar</h1>
                     <p>
-                        Catat surat keluar resmi, simpan arsip ke database, dan pantau hasil review atau disposisi
-                        tanpa perlu membuka halaman lain.
+                        Catat surat keluar resmi, buat konsep surat otomatis, simpan arsip ke database,
+                        dan bagikan tautan file ke penerima.
                     </p>
                 </div>
-                <button class="btn-primary" id="btnOpenModal" type="button">+ Tambah Surat Keluar</button>
+                <div class="header-actions">
+                    <button class="btn-secondary btn-toolbar" id="btnOpenLetterTypeModal" type="button">+ Buat Surat</button>
+                    <button class="btn-primary btn-toolbar" id="btnOpenModal" type="button">+ Tambah Surat Keluar</button>
+                </div>
             </div>
 
             <section class="stats-strip">
@@ -56,16 +58,16 @@
                     <strong>{{ $outgoingStats['total'] }}</strong>
                 </article>
                 <article class="mini-stat">
-                    <span class="mini-label">Draft</span>
-                    <strong>{{ $outgoingStats['draft'] }}</strong>
+                    <span class="mini-label">Dibuat Sistem</span>
+                    <strong>{{ $outgoingStats['generated'] }}</strong>
                 </article>
                 <article class="mini-stat">
-                    <span class="mini-label">Menunggu</span>
-                    <strong>{{ $outgoingStats['pending'] }}</strong>
+                    <span class="mini-label">Upload Manual</span>
+                    <strong>{{ $outgoingStats['upload'] }}</strong>
                 </article>
                 <article class="mini-stat">
-                    <span class="mini-label">Disetujui</span>
-                    <strong>{{ $outgoingStats['approved'] }}</strong>
+                    <span class="mini-label">Link Tersedia</span>
+                    <strong>{{ $outgoingStats['shared'] }}</strong>
                 </article>
             </section>
 
@@ -74,11 +76,11 @@
                     <div>
                         <h2>Daftar Arsip Surat Keluar</h2>
                         <p class="section-description">
-                            Data yang disimpan meliputi tanggal surat, tujuan, perihal, nomor surat, file arsip, status, dan catatan hasil disposisi.
+                            Data yang disimpan meliputi tanggal surat, tujuan, perihal, nomor surat, file arsip, dan tautan share untuk penerima.
                         </p>
                     </div>
                     <div class="workflow-note">
-                        <strong>Alur kerja:</strong> Draft -> Menunggu Persetujuan -> Revisi / Ditolak / Disetujui
+                        <strong>Alur kerja:</strong> Buat / upload surat -> Arsip tersimpan -> Bagikan link ke penerima
                     </div>
                 </div>
 
@@ -91,16 +93,18 @@
                                 <th>Perihal</th>
                                 <th>Nomor Surat</th>
                                 <th>File</th>
-                                <th>Status</th>
+                                <th>Share Link</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
                             @forelse($suratKeluar as $surat)
                                 @php
-                                    $statusKey = \App\Support\DispositionStatus::normalize($surat->status);
-                                    $statusMeta = $statusConfig[$statusKey] ?? $statusConfig['draft'];
-                                    $hasReviewSignal = filled($surat->notes) || $statusKey !== 'draft';
+                                    $docxUrl = $surat->generated_docx_path ? route('surat-keluar.downloadDocx', $surat->id) : '';
+                                    $shareUrl = $surat->share_token ? route('surat-keluar.share', $surat->share_token) : '';
+                                    $recordTypeLabel = $surat->document_type
+                                        ? ($generatedLetterTypes[$surat->document_type]['label'] ?? 'Surat Otomatis')
+                                        : 'Upload Surat Keluar';
                                 @endphp
                                 <tr
                                     data-id="{{ $surat->id }}"
@@ -110,10 +114,12 @@
                                     data-perihal="{{ $surat->subject }}"
                                     data-nomor="{{ $surat->letter_number }}"
                                     data-file="{{ $surat->file_name }}"
-                                    data-status="{{ $statusMeta['label'] }}"
-                                    data-status-key="{{ $statusKey }}"
                                     data-catatan="{{ $surat->notes ?: '-' }}"
                                     data-link="{{ route('archive.open', ['type' => 'surat-keluar', 'id' => $surat->id]) }}"
+                                    data-download-link="{{ route('archive.download', ['type' => 'surat-keluar', 'id' => $surat->id]) }}"
+                                    data-docx-link="{{ $docxUrl }}"
+                                    data-share-url="{{ $shareUrl }}"
+                                    data-record-type="{{ $recordTypeLabel }}"
                                 >
                                     <td>{{ optional($surat->letter_date)->format('d M Y') }}</td>
                                     <td>{{ $surat->destination }}</td>
@@ -123,21 +129,22 @@
                                         <span class="file-pill">{{ $surat->file_name }}</span>
                                     </td>
                                     <td>
-                                        <div class="status-cell">
-                                            <span class="badge {{ $statusMeta['class'] }}">
-                                                {{ $statusMeta['label'] }}
-                                            </span>
-                                            <button
-                                                class="review-indicator {{ filled($surat->notes) ? 'has-note' : 'has-status' }}"
-                                                type="button"
-                                                onclick="openNoteModal('{{ $surat->id }}')"
-                                                title="Lihat catatan disposisi"
-                                                {{ $hasReviewSignal ? '' : 'hidden' }}
-                                            >!</button>
-                                        </div>
+                                        <button
+                                            class="icon-button share-button"
+                                            type="button"
+                                            onclick="copyShareLink('{{ $surat->id }}')"
+                                            title="Salin link surat keluar"
+                                        >
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M15 8a3 3 0 0 1 0 6h-1v-2h1a1 1 0 0 0 0-2h-4a1 1 0 0 0 0 2h1v2h-1a3 3 0 1 1 0-6h4Zm-7 3h2v2H8a4 4 0 0 1 0-8h4v2H8a2 2 0 1 0 0 4Zm8 0h-2V9h2a4 4 0 1 1 0 8h-4v-2h4a2 2 0 0 0 0-4Z"></path>
+                                            </svg>
+                                        </button>
                                     </td>
                                     <td class="action-cell">
                                         <a href="{{ route('archive.open', ['type' => 'surat-keluar', 'id' => $surat->id]) }}" target="_blank" class="btn-small" rel="noopener">File</a>
+                                        @if($docxUrl)
+                                            <a href="{{ $docxUrl }}" class="btn-small" rel="noopener">DOCX</a>
+                                        @endif
                                         <button class="btn-small" type="button" onclick="viewDetail('{{ $surat->id }}')">Detail</button>
                                         <button class="btn-small btn-danger" type="button" onclick="deleteSuratKeluar('{{ $surat->id }}')">Hapus</button>
                                     </td>
@@ -168,7 +175,7 @@
 
             <form id="formSuratKeluar" class="register-form" enctype="multipart/form-data">
                 <div class="form-banner">
-                    Nomor surat masih diisi manual. Setelah tersimpan, data masuk ke database dan file dikirim ke Google Drive.
+                    Nomor surat untuk upload manual masih diisi manual. Setelah tersimpan, sistem membuat link share yang bisa dibagikan ke penerima.
                 </div>
 
                 <div class="form-row">
@@ -183,17 +190,9 @@
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group">
+                    <div class="form-group form-group-full">
                         <label for="letter_number">Nomor Surat <span class="required">*</span></label>
                         <input type="text" id="letter_number" name="letter_number" class="form-control" required placeholder="Isi manual untuk sementara">
-                    </div>
-                    <div class="form-group">
-                        <label for="status">Status <span class="required">*</span></label>
-                        <select id="status" name="status" class="form-control" required>
-                            @foreach($statusConfig as $statusKey => $statusMeta)
-                                <option value="{{ $statusKey }}">{{ $statusMeta['label'] }}</option>
-                            @endforeach
-                        </select>
                     </div>
                 </div>
 
@@ -235,6 +234,125 @@
         </div>
     </div>
 
+    <div class="modal" id="modalLetterType">
+        <div class="modal-content note-modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2>Pilih Jenis Surat</h2>
+                    <p class="modal-subtitle">Jenis surat menentukan form berikutnya dan kode nomor surat otomatis.</p>
+                </div>
+                <button class="modal-close" id="btnCloseLetterTypeModal" type="button">&times;</button>
+            </div>
+            <form id="formLetterType" class="register-form">
+                <div class="form-group">
+                    <label for="letterTypeSelect">Jenis Surat <span class="required">*</span></label>
+                    <select id="letterTypeSelect" class="form-control" required>
+                        @foreach($generatedLetterTypes as $typeKey => $typeMeta)
+                            <option value="{{ $typeKey }}">{{ $typeMeta['label'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="letter-number-preview">
+                    <span>Nomor otomatis berikutnya</span>
+                    <strong id="letterTypeNumberPreview">{{ $nextLetterNumbers['undangan'] ?? '-' }}</strong>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeLetterTypeModal()">Batal</button>
+                    <button type="submit" class="btn-success">Selanjutnya</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="modalGeneratedLetter">
+        <div class="modal-content modal-content-wide">
+            <div class="modal-header">
+                <div>
+                    <h2 id="generatedLetterTitle">Buat Surat Keluar</h2>
+                    <p class="modal-subtitle">Nomor surat dibuat otomatis oleh sistem. PDF, DOCX, dan link share akan masuk ke arsip surat keluar.</p>
+                </div>
+                <button class="modal-close" id="btnCloseGeneratedLetterModal" type="button">&times;</button>
+            </div>
+
+            <form id="formGeneratedLetter" class="register-form">
+                <input type="hidden" name="document_type" id="generated_document_type">
+
+                <div class="generated-letter-summary">
+                    <div>
+                        <span>Jenis Surat</span>
+                        <strong id="generatedLetterTypeLabel">Surat Undangan</strong>
+                    </div>
+                    <div>
+                        <span>Nomor Surat</span>
+                        <strong id="generatedLetterNumber">-</strong>
+                    </div>
+                </div>
+
+                <div class="form-section-title">Informasi Surat</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_document_date">Tanggal Surat <span class="required">*</span></label>
+                        <input type="date" id="generated_document_date" name="document_date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_subject">Perihal</label>
+                        <input type="text" id="generated_subject" name="subject" class="form-control" placeholder="Terisi otomatis bila dikosongkan">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_recipient_name">Tujuan / Penerima <span class="required">*</span></label>
+                        <input type="text" id="generated_recipient_name" name="recipient_name" class="form-control" required placeholder="Contoh: Bapak/Ibu Orang Tua/Wali Siswa">
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_city">Kota Surat <span class="required">*</span></label>
+                        <input type="text" id="generated_city" name="city" class="form-control" required value="Surakarta">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="generated_recipient_address">Alamat / Tempat Tujuan</label>
+                    <textarea id="generated_recipient_address" name="recipient_address" class="form-control" rows="2" placeholder="Contoh: Di Tempat"></textarea>
+                </div>
+
+                <div class="form-section-title">Isi Surat</div>
+                <div id="generatedDynamicFields"></div>
+
+                <div class="form-section-title">Penandatangan dan Arsip</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_signer_title">Jabatan Penandatangan <span class="required">*</span></label>
+                        <input type="text" id="generated_signer_title" name="signer_title" class="form-control" required value="Kepala MAN 2 Surakarta">
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_signer_name">Nama Penandatangan <span class="required">*</span></label>
+                        <input type="text" id="generated_signer_name" name="signer_name" class="form-control" required value="Sita Kurniasari">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generated_signer_nip">NIP Penandatangan</label>
+                        <input type="text" id="generated_signer_nip" name="signer_nip" class="form-control" placeholder="Opsional">
+                    </div>
+                    <div class="form-group">
+                        <label for="generated_notes">Catatan Arsip</label>
+                        <input type="text" id="generated_notes" name="notes" class="form-control" placeholder="Opsional">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="backToLetterTypeModal()">Kembali</button>
+                    <button type="submit" class="btn-success" id="btnGeneratedLetterSubmit">
+                        <span id="generatedLetterSubmitText">Simpan dan Buat Dokumen</span>
+                        <span id="generatedLetterSubmitLoader" style="display: none;">Membuat...</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="modal" id="modalDetail">
         <div class="modal-content detail-modal-content">
             <div class="modal-header">
@@ -245,31 +363,19 @@
         </div>
     </div>
 
-    <div class="modal" id="modalNote">
-        <div class="modal-content note-modal-content">
-            <div class="modal-header">
-                <h2>Catatan Disposisi</h2>
-                <button class="modal-close" type="button" onclick="closeNoteModal()">&times;</button>
-            </div>
-            <div class="modal-body note-body">
-                <div class="note-summary">
-                    <strong id="noteStatusLabel">Status surat</strong>
-                    <span id="noteStatusValue" class="note-status-pill">Draft</span>
-                </div>
-                <div class="note-panel">
-                    <p id="noteText">Belum ada catatan disposisi.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script src="{{ asset('js/request-progress.js') }}"></script>
     <script>
-        const statusConfig = @json($statusConfig);
+        const generatedLetterTypes = @json($generatedLetterTypes);
+        const nextLetterNumbers = @json($nextLetterNumbers);
         const modal = document.getElementById('modalRegister');
+        const letterTypeModal = document.getElementById('modalLetterType');
+        const generatedLetterModal = document.getElementById('modalGeneratedLetter');
         const detailModal = document.getElementById('modalDetail');
-        const noteModal = document.getElementById('modalNote');
         const form = document.getElementById('formSuratKeluar');
+        const letterTypeForm = document.getElementById('formLetterType');
+        const generatedLetterForm = document.getElementById('formGeneratedLetter');
+        const letterTypeSelect = document.getElementById('letterTypeSelect');
+        const generatedDynamicFields = document.getElementById('generatedDynamicFields');
         const fileInput = document.getElementById('letterFile');
         const fileUploadArea = document.getElementById('fileUploadArea');
         const fileNameDisplay = document.getElementById('fileNameDisplay');
@@ -285,6 +391,17 @@
         });
 
         document.getElementById('btnCloseModal').addEventListener('click', closeModal);
+        document.getElementById('btnOpenLetterTypeModal').addEventListener('click', () => {
+            updateLetterTypeNumberPreview();
+            letterTypeModal.style.display = 'flex';
+        });
+        document.getElementById('btnCloseLetterTypeModal').addEventListener('click', closeLetterTypeModal);
+        document.getElementById('btnCloseGeneratedLetterModal').addEventListener('click', closeGeneratedLetterModal);
+        letterTypeSelect.addEventListener('change', updateLetterTypeNumberPreview);
+        letterTypeForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            openGeneratedLetterModal(letterTypeSelect.value);
+        });
 
         fileUploadArea.addEventListener('click', () => fileInput.click());
 
@@ -343,6 +460,50 @@
             }
         });
 
+        generatedLetterForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const submitBtn = document.getElementById('btnGeneratedLetterSubmit');
+            const loader = document.getElementById('generatedLetterSubmitLoader');
+            const btnText = document.getElementById('generatedLetterSubmitText');
+            const formData = new FormData(generatedLetterForm);
+
+            try {
+                submitBtn.disabled = true;
+                loader.style.display = 'inline';
+                btnText.style.display = 'none';
+
+                const { response, result } = await RequestProgress.requestJson({
+                    url: '{{ route("surat-keluar.storeGenerated") }}',
+                    method: 'POST',
+                    data: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    },
+                    title: 'Membuat surat keluar',
+                    initialMessage: 'Menyiapkan konsep surat...',
+                    processingMessage: 'Membuat file PDF dan DOCX lalu menyimpan arsip...',
+                    successMessage: 'Surat keluar berhasil dibuat.'
+                });
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'Gagal membuat surat keluar.');
+                }
+
+                prependRow(result.data);
+                closeGeneratedLetterModal();
+                updateVisibleCount();
+                RequestProgress.showNotice(result.message, 'success');
+            } catch (error) {
+                alert(error.message || 'Terjadi kesalahan saat membuat surat keluar.');
+            } finally {
+                submitBtn.disabled = false;
+                loader.style.display = 'none';
+                btnText.style.display = 'inline';
+            }
+        });
+
         searchInput.addEventListener('input', () => {
             const query = searchInput.value.trim().toLowerCase();
             const rows = tableBody.querySelectorAll('tr[data-id]');
@@ -358,7 +519,6 @@
         function prependRow(data) {
             removeEmptyState();
 
-            const status = statusConfig[data.status] || statusConfig.draft;
             const row = document.createElement('tr');
 
             row.dataset.id = data.id;
@@ -368,12 +528,17 @@
             row.dataset.perihal = data.perihal;
             row.dataset.nomor = data.nomor;
             row.dataset.file = data.file;
-            row.dataset.status = status.label;
-            row.dataset.statusKey = data.status || 'draft';
             row.dataset.catatan = data.catatan || '-';
             row.dataset.link = data.google_drive_link || '';
+            row.dataset.downloadLink = data.download_url || '';
+            row.dataset.docxLink = data.docx_download_url || '';
+            row.dataset.shareUrl = data.share_url || '';
+            row.dataset.recordType = data.document_type_label || 'Upload Surat Keluar';
 
             const driveButton = `<a href="${escapeHtml(data.google_drive_link)}" target="_blank" class="btn-small" rel="noopener">File</a>`;
+            const docxButton = data.docx_download_url
+                ? `<a href="${escapeHtml(data.docx_download_url)}" class="btn-small" rel="noopener">DOCX</a>`
+                : '';
 
             row.innerHTML = `
                 <td>${escapeHtml(data.tanggal)}</td>
@@ -382,12 +547,13 @@
                 <td>${escapeHtml(data.nomor)}</td>
                 <td><span class="file-pill">${escapeHtml(data.file)}</span></td>
                 <td>
-                    <div class="status-cell">
-                        <span class="badge ${status.class}">${status.label}</span>
-                        ${renderReviewButton(data.id, data.status, data.catatan)}
-                    </div>
+                    <button class="icon-button share-button" type="button" onclick="copyShareLink('${data.id}')" title="Salin link surat keluar">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M15 8a3 3 0 0 1 0 6h-1v-2h1a1 1 0 0 0 0-2h-4a1 1 0 0 0 0 2h1v2h-1a3 3 0 1 1 0-6h4Zm-7 3h2v2H8a4 4 0 0 1 0-8h4v2H8a2 2 0 1 0 0 4Zm8 0h-2V9h2a4 4 0 1 1 0 8h-4v-2h4a2 2 0 0 0 0-4Z"></path>
+                        </svg>
+                    </button>
                 </td>
-                <td class="action-cell">${driveButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button><button class="btn-small btn-danger" type="button" onclick="deleteSuratKeluar('${data.id}')">Hapus</button></td>
+                <td class="action-cell">${driveButton}${docxButton}<button class="btn-small" type="button" onclick="viewDetail('${data.id}')">Detail</button><button class="btn-small btn-danger" type="button" onclick="deleteSuratKeluar('${data.id}')">Hapus</button></td>
             `;
 
             tableBody.prepend(row);
@@ -439,36 +605,54 @@
             const driveLink = row.dataset.link
                 ? `<p><strong>File Arsip:</strong> <a href="${escapeHtml(row.dataset.link)}" target="_blank" rel="noopener">Buka file</a></p>`
                 : '';
+            const downloadLink = row.dataset.downloadLink
+                ? `<p><strong>Download:</strong> <a href="${escapeHtml(row.dataset.downloadLink)}" target="_blank" rel="noopener">Download file</a></p>`
+                : '';
+            const docxLink = row.dataset.docxLink
+                ? `<p><strong>File DOCX:</strong> <a href="${escapeHtml(row.dataset.docxLink)}" rel="noopener">Unduh DOCX</a></p>`
+                : '';
+            const shareLink = row.dataset.shareUrl
+                ? `<p><strong>Share Link:</strong> <button class="btn-small" type="button" onclick="copyShareLink('${id}')">Salin link</button></p>`
+                : '';
 
             document.getElementById('detailContent').innerHTML = `
+                <p><strong>Jenis Arsip:</strong> ${escapeHtml(row.dataset.recordType || 'Surat Keluar')}</p>
                 <p><strong>Tanggal Surat:</strong> ${escapeHtml(row.dataset.tanggal)}</p>
                 <p><strong>Tujuan:</strong> ${escapeHtml(row.dataset.tujuan)}</p>
                 <p><strong>Perihal:</strong> ${escapeHtml(row.dataset.perihal)}</p>
                 <p><strong>Nomor Surat:</strong> ${escapeHtml(row.dataset.nomor)}</p>
                 <p><strong>File:</strong> ${escapeHtml(row.dataset.file)}</p>
-                <p><strong>Status:</strong> ${escapeHtml(row.dataset.status)}</p>
                 <p><strong>Catatan:</strong> ${escapeHtml(normalizeNote(row.dataset.catatan))}</p>
                 ${driveLink}
+                ${downloadLink}
+                ${docxLink}
+                ${shareLink}
             `;
 
             detailModal.style.display = 'flex';
         }
 
-        function openNoteModal(id) {
+        async function copyShareLink(id) {
             const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+            const shareUrl = row?.dataset.shareUrl || '';
 
-            if (!row) {
+            if (!shareUrl) {
+                alert('Link share belum tersedia untuk surat ini.');
                 return;
             }
 
-            const note = normalizeNote(row.dataset.catatan);
-            document.getElementById('noteStatusLabel').textContent = 'Status terakhir surat';
-            document.getElementById('noteStatusValue').textContent = row.dataset.status || 'Draft';
-            document.getElementById('noteText').textContent = note === '-'
-                ? 'Belum ada catatan tambahan. Surat ini sudah pernah ditinjau atau statusnya sudah diperbarui.'
-                : note;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(shareUrl);
+                } else {
+                    fallbackCopyText(shareUrl);
+                }
 
-            noteModal.style.display = 'flex';
+                RequestProgress.showNotice('Link surat keluar berhasil disalin.', 'success');
+            } catch (error) {
+                fallbackCopyText(shareUrl);
+                RequestProgress.showNotice('Link surat keluar berhasil disalin.', 'success');
+            }
         }
 
         function closeModal() {
@@ -478,12 +662,22 @@
             setSubmittingState(false);
         }
 
-        function closeDetailModal() {
-            detailModal.style.display = 'none';
+        function closeLetterTypeModal() {
+            letterTypeModal.style.display = 'none';
         }
 
-        function closeNoteModal() {
-            noteModal.style.display = 'none';
+        function closeGeneratedLetterModal() {
+            generatedLetterModal.style.display = 'none';
+            resetGeneratedLetterForm();
+        }
+
+        function backToLetterTypeModal() {
+            generatedLetterModal.style.display = 'none';
+            letterTypeModal.style.display = 'flex';
+        }
+
+        function closeDetailModal() {
+            detailModal.style.display = 'none';
         }
 
         function resetFileUpload() {
@@ -528,17 +722,180 @@
             return value && value !== 'null' ? value : '-';
         }
 
-        function hasReviewSignal(statusKey, note) {
-            return String(statusKey || 'draft') !== 'draft' || normalizeNote(note) !== '-';
+        function openGeneratedLetterModal(type) {
+            const meta = generatedLetterTypes[type] || generatedLetterTypes.undangan;
+
+            closeLetterTypeModal();
+            resetGeneratedLetterForm();
+            document.getElementById('generated_document_type').value = type;
+            document.getElementById('generatedLetterTitle').textContent = `Buat ${meta.label}`;
+            document.getElementById('generatedLetterTypeLabel').textContent = meta.label;
+            document.getElementById('generated_subject').placeholder = `Contoh: ${meta.subject_prefix}`;
+            document.getElementById('generated_subject').value = meta.subject_prefix;
+            document.getElementById('generated_document_date').value = todayDate();
+            renderGeneratedFields(type);
+            updateGeneratedLetterNumber();
+            generatedLetterModal.style.display = 'flex';
         }
 
-        function renderReviewButton(id, statusKey, note) {
-            if (!hasReviewSignal(statusKey, note)) {
-                return '';
-            }
+        function resetGeneratedLetterForm() {
+            generatedLetterForm.reset();
+            generatedDynamicFields.innerHTML = '';
+            document.getElementById('generated_city').value = 'Surakarta';
+            document.getElementById('generated_signer_title').value = 'Kepala MAN 2 Surakarta';
+            document.getElementById('generated_signer_name').value = 'Sita Kurniasari';
+        }
 
-            const buttonClass = normalizeNote(note) !== '-' ? 'has-note' : 'has-status';
-            return `<button class="review-indicator ${buttonClass}" type="button" onclick="openNoteModal('${id}')" title="Lihat catatan disposisi">!</button>`;
+        function updateLetterTypeNumberPreview() {
+            const type = letterTypeSelect.value || 'undangan';
+            document.getElementById('letterTypeNumberPreview').textContent = nextLetterNumbers[type] || '-';
+        }
+
+        function updateGeneratedLetterNumber() {
+            const type = document.getElementById('generated_document_type').value || 'undangan';
+            const dateValue = document.getElementById('generated_document_date').value || todayDate();
+            const date = new Date(`${dateValue}T00:00:00`);
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = String(date.getFullYear());
+            const sequence = String((nextLetterNumbers[type] || '001').split('/')[0] || '001').padStart(3, '0');
+            const code = generatedLetterTypes[type]?.code || 'HM.01';
+
+            document.getElementById('generatedLetterNumber').textContent = `${sequence}/Ma.11.31.02/${code}/${month}/${year}`;
+        }
+
+        document.getElementById('generated_document_date').addEventListener('change', updateGeneratedLetterNumber);
+
+        function renderGeneratedFields(type) {
+            const template = {
+                undangan: `
+                    <div class="form-row">
+                        <div class="form-group form-group-full">
+                            <label>Agenda Undangan <span class="required">*</span></label>
+                            <input type="text" name="agenda" class="form-control" required placeholder="Contoh: Rapat wali murid kelas X">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tanggal Kegiatan <span class="required">*</span></label>
+                            <input type="date" name="activity_date" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Waktu Mulai <span class="required">*</span></label>
+                            <input type="time" name="activity_time" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tempat Kegiatan <span class="required">*</span></label>
+                        <input type="text" name="activity_place" class="form-control" required placeholder="Contoh: Aula MAN 2 Surakarta">
+                    </div>
+                `,
+                keterangan: `
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nama yang Diterangkan <span class="required">*</span></label>
+                            <input type="text" name="described_person" class="form-control" required placeholder="Nama siswa/pegawai/pihak terkait">
+                        </div>
+                        <div class="form-group">
+                            <label>Identitas</label>
+                            <input type="text" name="person_identifier" class="form-control" placeholder="Contoh: NISN / NIP / Jabatan">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Isi Keterangan <span class="required">*</span></label>
+                        <textarea name="statement" class="form-control" rows="4" required placeholder="Tuliskan keterangan yang akan dimuat dalam surat"></textarea>
+                    </div>
+                `,
+                panggilan: `
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nama yang Dipanggil <span class="required">*</span></label>
+                            <input type="text" name="called_person" class="form-control" required placeholder="Nama penerima panggilan">
+                        </div>
+                        <div class="form-group">
+                            <label>Keperluan <span class="required">*</span></label>
+                            <input type="text" name="call_reason" class="form-control" required placeholder="Contoh: Klarifikasi administrasi">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tanggal Hadir <span class="required">*</span></label>
+                            <input type="date" name="call_date" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Waktu Hadir <span class="required">*</span></label>
+                            <input type="time" name="call_time" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tempat Hadir <span class="required">*</span></label>
+                        <input type="text" name="call_place" class="form-control" required placeholder="Contoh: Ruang Tata Usaha MAN 2 Surakarta">
+                    </div>
+                `,
+                perjanjian: `
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Pihak Pertama <span class="required">*</span></label>
+                            <input type="text" name="first_party" class="form-control" required placeholder="Contoh: MAN 2 Surakarta">
+                        </div>
+                        <div class="form-group">
+                            <label>Pihak Kedua <span class="required">*</span></label>
+                            <input type="text" name="second_party" class="form-control" required placeholder="Nama pihak kedua">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Objek Perjanjian <span class="required">*</span></label>
+                        <input type="text" name="agreement_subject" class="form-control" required placeholder="Contoh: Kerja sama kegiatan madrasah">
+                    </div>
+                    <div class="form-group">
+                        <label>Pokok Kesepakatan <span class="required">*</span></label>
+                        <textarea name="agreement_points" class="form-control" rows="5" required placeholder="Tulis tiap poin pada baris baru"></textarea>
+                    </div>
+                `,
+                izin: `
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nama yang Diberi Izin <span class="required">*</span></label>
+                            <input type="text" name="permitted_person" class="form-control" required placeholder="Nama siswa/pegawai/pihak terkait">
+                        </div>
+                        <div class="form-group">
+                            <label>Kegiatan / Keperluan <span class="required">*</span></label>
+                            <input type="text" name="permission_activity" class="form-control" required placeholder="Contoh: Mengikuti lomba tingkat kota">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tanggal Mulai <span class="required">*</span></label>
+                            <input type="date" name="permission_start_date" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Tanggal Selesai <span class="required">*</span></label>
+                            <input type="date" name="permission_end_date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tempat <span class="required">*</span></label>
+                        <input type="text" name="permission_place" class="form-control" required placeholder="Contoh: Gedung Pemuda Surakarta">
+                    </div>
+                `
+            };
+
+            generatedDynamicFields.innerHTML = template[type] || template.undangan;
+        }
+
+        function todayDate() {
+            return new Date().toISOString().slice(0, 10);
+        }
+
+        function fallbackCopyText(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            textarea.remove();
         }
 
         function escapeHtml(value) {
@@ -555,12 +912,16 @@
                 closeModal();
             }
 
-            if (event.target === detailModal) {
-                closeDetailModal();
+            if (event.target === letterTypeModal) {
+                closeLetterTypeModal();
             }
 
-            if (event.target === noteModal) {
-                closeNoteModal();
+            if (event.target === generatedLetterModal) {
+                closeGeneratedLetterModal();
+            }
+
+            if (event.target === detailModal) {
+                closeDetailModal();
             }
         });
     </script>

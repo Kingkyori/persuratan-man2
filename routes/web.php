@@ -28,6 +28,10 @@ Route::middleware('web')->group(function () {
     Route::get('/surat-masuk/share/{token}/file', [ArchiveFileController::class, 'shareOpen'])->name('surat-masuk.share.file');
     Route::get('/surat-masuk/share/{token}/preview', [ArchiveFileController::class, 'sharePreview'])->name('surat-masuk.share.preview');
     Route::get('/surat-masuk/share/{token}/download', [ArchiveFileController::class, 'shareDownload'])->name('surat-masuk.share.download');
+    Route::get('/surat-keluar/share/{token}', [SuratKeluarController::class, 'showSharePortal'])->name('surat-keluar.share');
+    Route::get('/surat-keluar/share/{token}/file', [ArchiveFileController::class, 'shareOutgoingOpen'])->name('surat-keluar.share.file');
+    Route::get('/surat-keluar/share/{token}/preview', [ArchiveFileController::class, 'shareOutgoingPreview'])->name('surat-keluar.share.preview');
+    Route::get('/surat-keluar/share/{token}/download', [ArchiveFileController::class, 'shareOutgoingDownload'])->name('surat-keluar.share.download');
 
     // Protected Routes (require session)
     Route::middleware('check.session')->group(function () {
@@ -46,7 +50,8 @@ Route::middleware('web')->group(function () {
 
             Route::get('/surat-keluar', [SuratKeluarController::class, 'index'])->name('surat-keluar');
             Route::post('/surat-keluar/store', [SuratKeluarController::class, 'store'])->name('surat-keluar.store');
-            Route::post('/surat-keluar/{id}/status', [SuratKeluarController::class, 'updateStatus'])->name('surat-keluar.updateStatus');
+            Route::post('/surat-keluar/store-generated', [SuratKeluarController::class, 'storeGenerated'])->name('surat-keluar.storeGenerated');
+            Route::get('/surat-keluar/{id}/docx', [SuratKeluarController::class, 'downloadDocx'])->name('surat-keluar.downloadDocx');
             Route::delete('/surat-keluar/{id}', [SuratKeluarController::class, 'destroy'])->name('surat-keluar.destroy');
 
             Route::get('/sppd', [SppdController::class, 'index'])->name('sppd');
